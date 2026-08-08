@@ -980,7 +980,15 @@ Call `/v1/models` to view available models for your key.</code></pre>
   }
   menuBtn.addEventListener('click', toggleDrawer);
   scrim.addEventListener('click', closeDrawer);
-  links.forEach(a => a.addEventListener('click', closeDrawer));
+  links.forEach(a => a.addEventListener('click', (e) => {
+    const targetId = a.getAttribute('href');
+    const target = document.querySelector(targetId);
+    if (target && sidebar.classList.contains('open')) {
+      e.preventDefault();
+      closeDrawer();
+      setTimeout(() => target.scrollIntoView({ behavior: 'smooth', block: 'start' }), 260);
+    }
+  }));
 </script>
 
 </body>
