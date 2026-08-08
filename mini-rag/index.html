@@ -4,23 +4,27 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mini-RAG — Learning Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0b0d16;
-    --bg-elevated: #12152400;
-    --surface: rgba(255, 255, 255, 0.045);
-    --surface-hover: rgba(255, 255, 255, 0.075);
-    --border: rgba(255, 255, 255, 0.09);
-    --border-strong: rgba(255, 255, 255, 0.16);
-    --accent: #7dd3fc;
-    --accent-2: #a78bfa;
-    --accent-soft: rgba(125, 211, 252, 0.14);
+    --bg: #0a0b12;
+    --surface: rgba(255, 255, 255, 0.04);
+    --surface-hover: rgba(255, 255, 255, 0.07);
+    --border: rgba(255, 255, 255, 0.08);
+    --border-strong: rgba(255, 255, 255, 0.15);
+    --accent: #8fd7ff;
+    --accent-2: #b9a3ff;
+    --accent-3: #ff9ecf;
+    --accent-soft: rgba(143, 215, 255, 0.13);
     --good: #6ee7b7;
-    --text: #eef0f8;
-    --text-dim: #9aa0bd;
-    --text-faint: #6b7095;
+    --text: #f3f4fb;
+    --text-dim: #9ea4c4;
+    --text-faint: #6a6f92;
     --mono: 'Cascadia Code', 'JetBrains Mono', Consolas, monospace;
-    --sidebar-w: 272px;
+    --sidebar-w: 280px;
+    --ease: cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   * { box-sizing: border-box; }
@@ -28,15 +32,17 @@
 
   body {
     margin: 0;
-    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
     background:
-      radial-gradient(ellipse 900px 500px at 15% -10%, #24316b 0%, transparent 60%),
-      radial-gradient(ellipse 700px 600px at 100% 20%, #3b2f66 0%, transparent 55%),
+      radial-gradient(ellipse 1000px 560px at 12% -8%, #2b3a80 0%, transparent 58%),
+      radial-gradient(ellipse 800px 640px at 105% 15%, #4a2f7a 0%, transparent 52%),
+      radial-gradient(ellipse 600px 500px at 50% 100%, #1d3a4a 0%, transparent 50%),
       var(--bg);
     color: var(--text);
     min-height: 100vh;
     line-height: 1.7;
     font-size: 15px;
+    -webkit-font-smoothing: antialiased;
   }
 
   /* ---------- Sidebar ---------- */
@@ -124,7 +130,7 @@
     color: var(--text-dim);
     text-decoration: none;
     font-size: 0.85rem;
-    transition: background 0.15s ease, color 0.15s ease;
+    transition: background 0.18s var(--ease), color 0.18s var(--ease), transform 0.18s var(--ease);
     border: 1px solid transparent;
   }
 
@@ -134,17 +140,20 @@
     color: var(--text-faint);
     flex-shrink: 0;
     width: 16px;
+    transition: color 0.18s var(--ease);
   }
 
   .navlist a:hover {
-    background: var(--surface);
+    background: var(--surface-hover);
     color: var(--text);
+    transform: translateX(2px);
   }
 
   .navlist a.active {
-    background: var(--accent-soft);
-    border-color: rgba(125, 211, 252, 0.25);
+    background: linear-gradient(90deg, var(--accent-soft), transparent);
+    border-color: rgba(143, 215, 255, 0.22);
     color: var(--text);
+    box-shadow: inset 2px 0 0 var(--accent);
   }
 
   .navlist a.active .n {
@@ -201,9 +210,48 @@
 
   header.hero p {
     color: var(--text-dim);
-    margin: 0;
+    margin: 0 0 28px;
     font-size: 1.02rem;
     max-width: 560px;
+  }
+
+  .stat-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    max-width: 560px;
+  }
+
+  .stat-tile {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 16px;
+    transition: border-color 0.2s var(--ease), transform 0.2s var(--ease), background 0.2s var(--ease);
+  }
+
+  .stat-tile:hover {
+    border-color: var(--border-strong);
+    background: var(--surface-hover);
+    transform: translateY(-2px);
+  }
+
+  .stat-tile .num {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    background: linear-gradient(105deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .stat-tile .lbl {
+    font-size: 0.72rem;
+    color: var(--text-faint);
+    margin-top: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
   }
 
   section.card {
@@ -212,8 +260,15 @@
     border: 1px solid var(--border);
     border-radius: 20px;
     padding: 32px 34px;
-    margin-bottom: 32px;
+    margin-bottom: 28px;
     scroll-margin-top: 40px;
+    transition: border-color 0.25s var(--ease), background 0.25s var(--ease), transform 0.25s var(--ease), box-shadow 0.25s var(--ease);
+  }
+
+  section.card:hover {
+    border-color: var(--border-strong);
+    background: rgba(255, 255, 255, 0.055);
+    box-shadow: 0 20px 50px -20px rgba(0, 0, 0, 0.5);
   }
 
   section.card::before {
@@ -224,8 +279,8 @@
     width: 3px;
     height: 100%;
     border-radius: 20px 0 0 20px;
-    background: linear-gradient(180deg, var(--accent), var(--accent-2));
-    opacity: 0.5;
+    background: linear-gradient(180deg, var(--accent), var(--accent-2), var(--accent-3));
+    opacity: 0.55;
   }
 
   .card-head {
@@ -356,8 +411,14 @@
     justify-content: space-between;
     gap: 16px;
     color: var(--text-dim);
-    padding: 10px 0;
+    padding: 10px 4px;
     border-bottom: 1px solid var(--border);
+    border-radius: 6px;
+    transition: background 0.15s ease;
+  }
+
+  .example .row:hover {
+    background: rgba(255, 255, 255, 0.025);
   }
 
   .example .row:last-child { border-bottom: none; }
@@ -502,7 +563,7 @@
 
 <div class="mobile-bar">
   <div class="brand">
-    <span class="dot" style="width:8px;height:8px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-2));box-shadow:0 0 12px rgba(125,211,252,0.7);"></span>
+    <span class="dot" style="width:8px;height:8px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-2));box-shadow:0 0 12px rgba(143,215,255,0.7);"></span>
     <span>mini-rag</span>
   </div>
   <button class="menu-btn" id="menuBtn" aria-label="Toggle navigation">
@@ -544,6 +605,12 @@
     <span class="eyebrow">RAG from scratch</span>
     <h1>Mini-RAG Learning Log</h1>
     <p>A step-by-step backup of the RAG project you're building by hand — concepts, code, real output, and the debugging detours along the way.</p>
+
+    <div class="stat-row">
+      <div class="stat-tile"><div class="num">7</div><div class="lbl">Steps done</div></div>
+      <div class="stat-tile"><div class="num">384</div><div class="lbl">Vector dims</div></div>
+      <div class="stat-tile"><div class="num">3</div><div class="lbl">Docs indexed</div></div>
+    </div>
   </header>
 
   <section class="card" id="step1">
