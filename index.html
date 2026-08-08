@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Learning Logs</title>
+<style>
+  :root {
+    --bg: #0b0d16;
+    --accent: #7dd3fc;
+    --accent-2: #a78bfa;
+    --text: #eef0f8;
+    --text-dim: #9aa0bd;
+    --surface: rgba(255, 255, 255, 0.045);
+    --border: rgba(255, 255, 255, 0.09);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background:
+      radial-gradient(ellipse 900px 500px at 15% -10%, #24316b 0%, transparent 60%),
+      radial-gradient(ellipse 700px 600px at 100% 20%, #3b2f66 0%, transparent 55%),
+      var(--bg);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .wrap { max-width: 560px; width: 100%; }
+  h1 {
+    font-size: 2rem;
+    margin: 0 0 10px;
+    background: linear-gradient(105deg, #fff 20%, var(--accent) 65%, var(--accent-2) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  p.sub { color: var(--text-dim); margin: 0 0 32px; }
+  a.card {
+    display: block;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px 22px;
+    margin-bottom: 14px;
+    text-decoration: none;
+    color: var(--text);
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  a.card:hover { background: rgba(255,255,255,0.08); border-color: rgba(125,211,252,0.3); }
+  a.card .name { font-weight: 600; font-size: 1.05rem; }
+  a.card .desc { color: var(--text-dim); font-size: 0.88rem; margin-top: 4px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Learning Logs</h1>
+    <p class="sub">Step-by-step backups of hands-on learning sessions — concepts, code, real output.</p>
+    <a class="card" href="mini-rag/">
+      <div class="name">mini-rag</div>
+      <div class="desc">Building a RAG pipeline from scratch — chunking, embeddings, retrieval, Claude generation.</div>
+    </a>
+  </div>
+</body>
+</html>

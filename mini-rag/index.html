@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mini-RAG — Learning Log</title>
+<style>
+  :root {
+    --bg: #0b0d16;
+    --bg-elevated: #12152400;
+    --surface: rgba(255, 255, 255, 0.045);
+    --surface-hover: rgba(255, 255, 255, 0.075);
+    --border: rgba(255, 255, 255, 0.09);
+    --border-strong: rgba(255, 255, 255, 0.16);
+    --accent: #7dd3fc;
+    --accent-2: #a78bfa;
+    --accent-soft: rgba(125, 211, 252, 0.14);
+    --good: #6ee7b7;
+    --text: #eef0f8;
+    --text-dim: #9aa0bd;
+    --text-faint: #6b7095;
+    --mono: 'Cascadia Code', 'JetBrains Mono', Consolas, monospace;
+    --sidebar-w: 272px;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background:
+      radial-gradient(ellipse 900px 500px at 15% -10%, #24316b 0%, transparent 60%),
+      radial-gradient(ellipse 700px 600px at 100% 20%, #3b2f66 0%, transparent 55%),
+      var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.7;
+    font-size: 15px;
+  }
+
+  /* ---------- Sidebar ---------- */
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: var(--sidebar-w);
+    height: 100vh;
+    padding: 28px 18px;
+    overflow-y: auto;
+    background: rgba(10, 12, 22, 0.6);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    border-right: 1px solid var(--border);
+    z-index: 100;
+  }
+
+  .sidebar .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 10px 22px;
+  }
+
+  .brand .dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    box-shadow: 0 0 14px rgba(125, 211, 252, 0.7);
+  }
+
+  .brand span {
+    font-weight: 700;
+    font-size: 0.95rem;
+    letter-spacing: 0.01em;
+  }
+
+  .brand small {
+    display: block;
+    color: var(--text-faint);
+    font-size: 0.68rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-top: 1px;
+  }
+
+  .progress-track {
+    margin: 0 10px 20px;
+    height: 4px;
+    border-radius: 4px;
+    background: var(--surface);
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    width: 100%;
+    transition: width 0.3s ease;
+  }
+
+  .progress-label {
+    margin: -14px 10px 18px;
+    font-size: 0.72rem;
+    color: var(--text-faint);
+  }
+
+  .navlist {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .navlist a {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: 10px;
+    color: var(--text-dim);
+    text-decoration: none;
+    font-size: 0.85rem;
+    transition: background 0.15s ease, color 0.15s ease;
+    border: 1px solid transparent;
+  }
+
+  .navlist a .n {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--text-faint);
+    flex-shrink: 0;
+    width: 16px;
+  }
+
+  .navlist a:hover {
+    background: var(--surface);
+    color: var(--text);
+  }
+
+  .navlist a.active {
+    background: var(--accent-soft);
+    border-color: rgba(125, 211, 252, 0.25);
+    color: var(--text);
+  }
+
+  .navlist a.active .n {
+    color: var(--accent);
+  }
+
+  .sidebar-footer {
+    margin-top: 24px;
+    padding: 14px 12px 4px;
+    border-top: 1px solid var(--border);
+    color: var(--text-faint);
+    font-size: 0.72rem;
+    line-height: 1.5;
+  }
+
+  /* ---------- Main content ---------- */
+
+  .main {
+    margin-left: var(--sidebar-w);
+    max-width: 760px;
+    padding: 64px 48px 140px;
+  }
+
+  header.hero {
+    margin-bottom: 52px;
+  }
+
+  .hero .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border: 1px solid rgba(125, 211, 252, 0.25);
+    padding: 5px 12px;
+    border-radius: 999px;
+    margin-bottom: 18px;
+  }
+
+  header.hero h1 {
+    font-size: 2.3rem;
+    line-height: 1.15;
+    margin: 0 0 12px;
+    letter-spacing: -0.01em;
+    background: linear-gradient(105deg, #ffffff 20%, var(--accent) 65%, var(--accent-2) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  header.hero p {
+    color: var(--text-dim);
+    margin: 0;
+    font-size: 1.02rem;
+    max-width: 560px;
+  }
+
+  section.card {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 32px 34px;
+    margin-bottom: 32px;
+    scroll-margin-top: 40px;
+  }
+
+  section.card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 3px;
+    height: 100%;
+    border-radius: 20px 0 0 20px;
+    background: linear-gradient(180deg, var(--accent), var(--accent-2));
+    opacity: 0.5;
+  }
+
+  .card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .step-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border: 1px solid rgba(125, 211, 252, 0.28);
+    padding: 4px 11px;
+    border-radius: 999px;
+  }
+
+  .step-label.wip {
+    color: #fcd34d;
+    background: rgba(252, 211, 77, 0.12);
+    border-color: rgba(252, 211, 77, 0.3);
+  }
+
+  .card h2 {
+    margin: 0 0 16px;
+    font-size: 1.32rem;
+    letter-spacing: -0.005em;
+    color: var(--text);
+  }
+
+  .card p {
+    color: var(--text-dim);
+    margin: 0 0 14px;
+  }
+
+  .card p:last-of-type { margin-bottom: 0; }
+  .card > *:last-child { margin-bottom: 0 !important; }
+
+  .card strong { color: var(--text); font-weight: 600; }
+  .card em { color: var(--text); font-style: normal; font-weight: 600; }
+
+  .card ul, .card ol {
+    color: var(--text-dim);
+    margin: 0 0 14px;
+    padding-left: 22px;
+  }
+
+  .card li { margin-bottom: 6px; }
+  .card li:last-child { margin-bottom: 0; }
+
+  code {
+    background: rgba(255, 255, 255, 0.09);
+    padding: 2.5px 7px;
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 0.87em;
+    color: #a5f0c8;
+    white-space: nowrap;
+  }
+
+  pre {
+    background: #060812;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 20px;
+    overflow-x: auto;
+    margin: 16px 0;
+    position: relative;
+  }
+
+  pre::before {
+    content: '';
+    position: absolute;
+    top: 12px;
+    left: 16px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ef476f;
+    box-shadow: 16px 0 0 #ffd166, 32px 0 0 #06d6a0;
+    opacity: 0.55;
+  }
+
+  pre code {
+    background: none;
+    padding: 0;
+    color: #cdebe0;
+    font-size: 0.86rem;
+    white-space: pre;
+    display: block;
+    margin-top: 14px;
+    line-height: 1.6;
+  }
+
+  .callout {
+    background: rgba(167, 139, 250, 0.07);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin: 16px 0;
+    font-size: 0.93rem;
+  }
+
+  .callout.warn {
+    background: rgba(251, 146, 60, 0.08);
+    border-color: rgba(251, 146, 60, 0.25);
+  }
+
+  .example {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 6px 18px;
+    margin: 16px 0;
+    font-size: 0.9rem;
+  }
+
+  .example .row {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    color: var(--text-dim);
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .example .row:last-child { border-bottom: none; }
+  .example .row span { flex-shrink: 0; color: var(--text-faint); }
+  .example .row b { color: var(--accent); font-weight: 600; text-align: right; }
+
+  .status {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 0.86rem;
+    color: var(--good);
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px dashed var(--border);
+  }
+
+  .status::before {
+    content: '✓';
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    background: rgba(110, 231, 183, 0.15);
+    border-radius: 50%;
+    font-size: 0.68rem;
+    flex-shrink: 0;
+  }
+
+  .status.pending {
+    color: var(--text-faint);
+  }
+
+  .status.pending::before {
+    content: '…';
+    background: rgba(154, 160, 189, 0.15);
+  }
+
+  footer.page-footer {
+    color: var(--text-faint);
+    font-size: 0.8rem;
+    padding: 24px 4px 0;
+    opacity: 0.85;
+  }
+
+  @media (max-width: 900px) {
+    .sidebar { display: none; }
+    .main { margin-left: 0; padding: 40px 24px 100px; }
+  }
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="brand">
+    <span class="dot"></span>
+    <div>
+      <span>mini-rag</span>
+      <small>Learning Log</small>
+    </div>
+  </div>
+
+  <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+  <div class="progress-label" id="progressLabel">7 / 7 steps</div>
+
+  <nav class="navlist" id="navlist">
+    <a href="#step1"><span class="n">01</span>Chunking — the idea</a>
+    <a href="#step2"><span class="n">02</span>The loop</a>
+    <a href="#step3"><span class="n">03</span>Real file</a>
+    <a href="#step4"><span class="n">04</span>Embeddings</a>
+    <a href="#step5"><span class="n">05</span>Similarity theory</a>
+    <a href="#step6"><span class="n">06</span>Best match</a>
+    <a href="#step7"><span class="n">07</span>Generation</a>
+  </nav>
+
+  <div class="sidebar-footer">
+    Reopen this file anytime — it's a standing backup of every concept, task, error, and fix from the session.
+  </div>
+</aside>
+
+<div class="main">
+  <header class="hero">
+    <span class="eyebrow">RAG from scratch</span>
+    <h1>Mini-RAG Learning Log</h1>
+    <p>A step-by-step backup of the RAG project you're building by hand — concepts, code, real output, and the debugging detours along the way.</p>
+  </header>
+
+  <section class="card" id="step1">
+    <div class="card-head">
+      <span class="step-label">Step 1</span>
+    </div>
+    <h2>Chunking — the idea</h2>
+    <p>
+      We're building <code>chunk_text(text, chunk_size, overlap)</code> — a function that
+      cuts one long string of text into smaller, overlapping pieces.
+    </p>
+    <p>
+      <code>chunk_size</code> = how many characters go in one chunk.<br>
+      <code>overlap</code> = how many of those characters repeat at the start of the next chunk,
+      so an idea that spans a boundary doesn't get cut in half and lose its meaning.
+    </p>
+    <p>
+      The number that actually matters for the loop is the <strong>step size</strong>:
+    </p>
+    <pre><code>step = chunk_size - overlap</code></pre>
+    <p>This is how far the starting position moves forward for each new chunk.</p>
+
+    <div class="example">
+      <div class="row"><span>text length</span><b>1000</b></div>
+      <div class="row"><span>chunk_size</span><b>300</b></div>
+      <div class="row"><span>overlap</span><b>50</b></div>
+      <div class="row"><span>step (300 − 50)</span><b>250</b></div>
+      <div class="row"><span>chunk starts</span><b>0, 250, 500, 750</b></div>
+      <div class="row"><span>total chunks</span><b>4</b></div>
+    </div>
+
+    <p>
+      The last chunk (starting at 750) only has 250 characters left instead of a full 300 —
+      that's expected. Whatever's left just becomes a shorter final chunk.
+    </p>
+
+    <p>What you wrote so far:</p>
+    <pre><code>def chunk_text(text, chunk_size, overlap):
+    """Split text into overlapping chunks of chunk_size characters."""</code></pre>
+
+    <div class="status">Signature + docstring written</div>
+  </section>
+
+  <section class="card" id="step2">
+    <div class="card-head">
+      <span class="step-label">Step 2</span>
+    </div>
+    <h2>The loop</h2>
+    <p>
+      Next we turn the "chunk starts" idea (<code>0, 250, 500, 750</code>) into an actual loop that
+      slices the string and stops once the start position goes past the end of the text.
+    </p>
+
+    <p><strong>Walking through it by hand</strong> — <code>len(text)=1000, chunk_size=300, overlap=50, step=250</code>:</p>
+
+    <div class="example">
+      <div class="row"><span>iter 1 · start=0</span><b>text[0:300]</b></div>
+      <div class="row"><span>iter 2 · start=250</span><b>text[250:550]</b></div>
+      <div class="row"><span>iter 3 · start=500</span><b>text[500:800]</b></div>
+      <div class="row"><span>iter 4 · start=750</span><b>text[750:1050] → really text[750:1000]</b></div>
+      <div class="row"><span>iter 5 · start=1000</span><b>loop stops</b></div>
+    </div>
+
+    <p>
+      Python string slicing is forgiving: <code>text[750:1050]</code> on a 1000-character string
+      just returns up to character 1000, no error. That's why the shorter last chunk "just works" —
+      no special-case code needed.
+    </p>
+
+    <div class="callout warn">
+      <strong>Bug caught:</strong> the loop condition must be <code>start &lt; len(text)</code>, not
+      <code>start &lt;= len(text)</code>. With <code>&lt;=</code>, when <code>start == len(text)</code>
+      (position 1000 in our example), <code>text[1000:1300]</code> is an empty string <code>""</code> —
+      there's no character <em>at</em> index 1000 in a 1000-character string (valid indices are 0–999).
+      That extra iteration would append a useless empty chunk.
+    </div>
+
+    <p><strong>What was still missing:</strong> the sliced <code>chunk</code> was computed but never saved.
+    Fix: create <code>chunks = []</code> before the loop, <code>chunks.append(chunk)</code> inside it,
+    and <code>return chunks</code> after the loop ends.</p>
+
+    <p><strong>Your final, correct version:</strong></p>
+
+    <pre><code>def chunk_text(text, chunk_size, overlap):
+    """Split text into overlapping chuncks of chunk_size characters."""
+    step = chunk_size - overlap
+    start = 0
+    chunks = []
+    while start &lt; len(text):
+        chunk = text[start:start+chunk_size]
+        chunks.append(chunk)
+        start += step
+    return chunks</code></pre>
+
+    <div class="status">chunk_text complete and correct</div>
+  </section>
+
+  <section class="card" id="step3">
+    <div class="card-head">
+      <span class="step-label">Step 3</span>
+    </div>
+    <h2>Running it on a real file</h2>
+
+    <p><strong>The concept, in plain terms:</strong> so far <code>chunk_text</code> only works on
+    a string that already exists in memory. A real document lives on disk as a <code>.txt</code>
+    file, so before we can chunk it we need to (1) open that file, (2) read its entire contents
+    into one big string, (3) hand that string to <code>chunk_text</code>, and (4) look at what
+    comes back to confirm it behaves the way we predicted on paper in Step 2.</p>
+
+    <p><strong>Why <code>with open(...)</code> instead of just <code>open(...)</code>:</strong>
+    opening a file reserves a resource (a file handle) that the operating system needs back when
+    you're done. <code>with</code> guarantees the file is closed automatically the moment the
+    indented block ends — even if an error happens inside it. Without <code>with</code> you'd have
+    to remember to call <code>f.close()</code> yourself, and a crash before that line would leave
+    the file open.</p>
+
+    <p><strong>Why <code>encoding="utf-8"</code>:</strong> text files are stored as bytes on disk;
+    an encoding is the rulebook for turning those bytes back into characters. UTF-8 is the standard
+    that correctly handles ordinary English text as well as special characters (accents, curly
+    quotes, etc). Leaving it out lets Python fall back to whatever the operating system's default
+    happens to be, which can silently produce wrong characters on some systems.</p>
+
+    <p><strong>Why the path is <code>"docs/embeddings.txt"</code> and not something longer:</strong>
+    this is a <em>relative</em> path — relative to whatever folder you're standing in (your
+    "current working directory") when you run the script. Since <code>mini_rag.py</code> lives in
+    <code>mini-rag/</code> and the file lives in <code>mini-rag/docs/</code>, running the script
+    from inside <code>mini-rag/</code> makes <code>"docs/embeddings.txt"</code> resolve correctly.
+    Run the same script from a different folder and this exact path would fail.</p>
+
+    <p>Putting it together — read the whole file into one string, chunk it, print each result:</p>
+
+    <pre><code>with open("docs/embeddings.txt", "r", encoding="utf-8") as f:
+    text = f.read()
+chunks = chunk_text(text, 300, 50)
+for i, chunk in enumerate(chunks):
+    print("index:", i, '\n', "chunk:", chunk)</code></pre>
+
+    <p><strong>Result:</strong> 14 chunks printed, matching the concept from Step 2 — the file is
+    a few thousand characters, and 14 chunks of ~300 characters with 250-character steps between
+    them covers it.</p>
+
+    <p><strong>Verifying the overlap by eye</strong> — the actual proof that the code does what
+    Step 2 predicted, not just "it ran without crashing":</p>
+
+    <div class="example">
+      <div class="row"><span>chunk 0 ends with</span><b>"...use c"</b></div>
+      <div class="row"><span>chunk 1 starts with</span><b>"ther in that number space..."</b></div>
+    </div>
+
+    <p>
+      Chunk 1 repeats the tail end of chunk 0 word-for-word — that's the 50-character overlap
+      physically visible in real output, not just something we calculated on paper.
+    </p>
+
+    <div class="callout">
+      <strong>Debugging detour:</strong> the first run in the terminal appeared to print nothing.
+      We re-ran it deliberately and it printed correctly, with the right working directory
+      (<code>.../mini-rag</code>) and the right Python (3.12.4) confirmed via <code>pwd</code>,
+      <code>dir mini_rag.py</code>, and <code>python --version</code>. We could not reproduce the
+      empty-output result a second time, so it's logged as an unresolved one-off, not a fixed bug —
+      if it happens again, check working directory and Python version first.
+    </div>
+
+    <div class="status">chunk_text verified on real text — 14 chunks, overlap confirmed by eye</div>
+  </section>
+
+  <section class="card" id="step4">
+    <div class="card-head">
+      <span class="step-label">Step 4</span>
+    </div>
+    <h2>Embeddings — turning chunks into vectors</h2>
+
+    <p><strong>The concept:</strong> <code>sentence-transformers</code> gives you a pretrained
+    model. Calling <code>model.encode(text)</code> on any piece of text hands back a vector — a
+    list of floating point numbers (384 numbers, for the model we're using). That vector is the
+    model's numeric summary of what the text <em>means</em>.</p>
+
+    <p>Two chunks about similar topics get vectors pointing in a similar direction in that
+    384-dimensional space. Two unrelated chunks point in different directions. That single idea —
+    comparing vector directions — is what all of search and RAG retrieval is built on top of.</p>
+
+    <p><strong>First task — installation only:</strong></p>
+
+    <pre><code>pip install sentence-transformers</code></pre>
+
+    <p>This pulls in <code>torch</code> (the deep learning library the model runs on) as a
+    dependency, so it's a few hundred MB and can take a couple of minutes.</p>
+
+    <div class="status">sentence-transformers installed</div>
+
+    <p style="margin-top:22px"><strong>Question raised: why 384 numbers specifically, and who decides that?</strong></p>
+
+    <p>384 is not a universal rule — it's a fixed property of one particular model,
+    <code>all-MiniLM-L6-v2</code>, which is the model we're about to load. Whoever designed and
+    trained that model chose an output layer with exactly 384 numbers, as a tradeoff:</p>
+
+    <div class="example">
+      <div class="row"><span>Bigger vectors (768, 1024, 1536...)</span><b>more nuance, more memory, slower</b></div>
+      <div class="row"><span>Smaller vectors (384 or less)</span><b>faster, lighter, less precise</b></div>
+    </div>
+
+    <p><code>all-MiniLM-L6-v2</code> ("Mini" is in the name) was deliberately built small and fast,
+    so 384 was the tradeoff its authors picked. A different model — OpenAI's
+    <code>text-embedding-3-small</code> (1536 numbers) or Voyage's models (1024 numbers) — would
+    give a different fixed length, because that length is baked into that model's architecture.</p>
+
+    <p><strong>The rule that matters going forward:</strong> once you pick a model, every single
+    thing you embed with it — every chunk, every question — always comes out as that same fixed
+    length. The length is a property of the model, not something you choose per call, and (as
+    noted back in Step 1) you must always embed with the <em>same</em> model for comparisons to
+    mean anything.</p>
+
+    <p><strong>Question raised: do I need to manually download all-MiniLM-L6-v2?</strong></p>
+
+    <p>No — <code>SentenceTransformer("all-MiniLM-L6-v2")</code> downloads it automatically the
+    <em>first</em> time it's called, fetching the model files from Hugging Face and caching them
+    locally (typically under <code>C:\Users\&lt;you&gt;\.cache\huggingface\</code>). Every run
+    after that loads instantly from the local cache instead of re-downloading. The first run being
+    slow is expected — that's the one-time download happening.</p>
+
+    <p>Task given: add <code>from sentence_transformers import SentenceTransformer</code> at the
+    top of the file, load the model with
+    <code>model = SentenceTransformer("all-MiniLM-L6-v2")</code>, then embed just
+    <code>chunks[0]</code> and print its length and first 5 numbers.</p>
+
+    <pre><code>embedding = model.encode(chunks[0])
+print("length:", len(embedding))
+print("first 5 numbers:", embedding[:5])</code></pre>
+
+    <div class="callout warn">
+      <strong>Hit while testing: <code>FileNotFoundError</code> for <code>docs/embeddings.txt</code>.</strong>
+      Same root cause as the Step 3 debugging detour — the terminal prompt showed
+      <code>...\Downloads\VSCode&gt;</code>, not <code>...\Downloads\VSCode\Gen AI Projects\mini-rag&gt;</code>.
+      A relative path like <code>"docs/embeddings.txt"</code> only resolves correctly when the
+      terminal's current folder is <code>mini-rag</code> itself.
+    </div>
+
+    <pre><code>cd "Gen AI Projects\mini-rag"
+python mini_rag.py</code></pre>
+
+    <p><strong>Bigger detour: corporate network blocked the model download.</strong>
+    Running from the correct folder surfaced a new error —
+    <code>SSLCertVerificationError: self-signed certificate in certificate chain</code> when trying
+    to reach huggingface.co. This is a work laptop (AbbVie), and this is the classic sign of a
+    corporate network that inspects HTTPS traffic through a proxy (this one turned out to be
+    <strong>Zscaler</strong>) — it re-signs traffic with its own certificate, which Python doesn't
+    trust by default even though your browser does (the browser gets the corporate cert from
+    Windows' trust store automatically; Python uses its own separate bundle via the
+    <code>certifi</code> package).</p>
+
+    <p><strong>Fix, step by step:</strong></p>
+    <div class="example">
+      <div class="row"><span>1. Found corporate root cert</span><b>Windows Cert store → AbbVie Global Root CA + Sub CA03</b></div>
+      <div class="row"><span>2. Exported both</span><b>PowerShell → .cer files</b></div>
+      <div class="row"><span>3. Converted to PEM</span><b>openssl x509 -inform DER</b></div>
+      <div class="row"><span>4. Appended to certifi's bundle</span><b>site-packages\certifi\cacert.pem (backup kept)</b></div>
+    </div>
+
+    <p>This is a standing fix, not a one-time thing — every future HTTPS call from Python on this
+    machine (pip installs, API calls, model downloads) goes through the same inspecting proxy, so
+    the appended certs stay in place permanently. They're just public root/intermediate CA
+    certificates (not secrets), and this is normal, expected configuration for a corporate machine.</p>
+
+    <p><strong>Second layer, after the SSL fix:</strong> a new error appeared —
+    <code>RemoteProtocolError: illegal status line</code>, with an HTML page instead of real
+    data. Testing directly showed <strong>Zscaler returning an HTTP 403 block page</strong>, but
+    only for the script-style request — the exact same URL loaded fine in a normal browser.
+    The difference: Python's default requests don't send a browser-like
+    <code>User-Agent</code> header, and Zscaler's policy here appears to treat headerless/script
+    traffic differently from normal browsing, even for identical, public, harmless content.</p>
+
+    <div class="callout">
+      <strong>Decision point:</strong> spoofing a browser User-Agent gets past this, but it's a
+      standing identity-spoofing change if set permanently — on a company-managed device, that's a
+      call for the user to make, not something to quietly configure system-wide. Chose:
+      <strong>session-only override</strong>, used once to complete this one download. Once the
+      model is cached locally, no further network access is needed for it — so there's no ongoing
+      need for the override.
+    </div>
+
+    <pre><code>export HF_HUB_USER_AGENT_ORIGIN="Mozilla/5.0 (Windows NT 10.0; Win64; x64) ..."
+python mini_rag.py</code></pre>
+
+    <p><strong>Result:</strong></p>
+    <div class="example">
+      <div class="row"><span>length</span><b>384</b></div>
+      <div class="row"><span>first 5 numbers</span><b>[0.0131, -0.0552, -0.0531, -0.0332, 0.0309]</b></div>
+    </div>
+
+    <p>384 confirmed, matching the theory discussed above. Model is now cached at
+    <code>C:\Users\&lt;you&gt;\.cache\huggingface\</code> — future runs load instantly offline.</p>
+
+    <div class="status">Model loaded, first chunk embedded — 384-length vector confirmed</div>
+
+    <p style="margin-top:22px"><strong>Follow-up questions, answered:</strong></p>
+
+    <p><em>Are the "first 5 numbers" out of the full 384?</em> Yes — <code>embedding</code> is a
+    list of 384 numbers total; <code>embedding[:5]</code> is just a peek at the first 5 so we don't
+    dump all 384 to the screen. <code>len(embedding)</code> counts how many items are in that list,
+    which is how we confirmed 384.</p>
+
+    <p><em>How did the model actually turn text into numbers?</em> A transformer neural network
+    (the same family of architecture behind LLMs like Claude) reads the text and passes it through
+    layers of weights learned during training on huge amounts of text, producing a final
+    384-number summary. The "meaning" isn't a hand-written rule — it emerged from training on
+    millions of examples. We're using this model as a finished tool, the same way you'd drive a
+    car without knowing engine internals; going deeper into transformer internals is a legitimate
+    future topic, but a detour from finishing this project.</p>
+
+    <p><em>Is the model reusable for future projects?</em> Yes — it's cached at
+    <code>C:\Users\&lt;you&gt;\.cache\huggingface\hub\...</code>, outside the mini-rag folder
+    entirely. Any future Python project on this machine that loads
+    <code>"all-MiniLM-L6-v2"</code> finds it already cached — no re-download.</p>
+
+    <p><em>Is 24GB RAM enough?</em> Far more than enough — MiniLM is under 100MB on disk and uses
+    well under 1GB of RAM when loaded. This only becomes a real consideration with much larger
+    (multi-GB) local models, which this project doesn't use.</p>
+
+    <p><em>Are we running the model on Hugging Face's servers?</em> No — Hugging Face was only
+    used to <strong>distribute</strong> the model files, downloaded once. Every call to
+    <code>model.encode(...)</code> runs entirely on the local CPU, no internet needed, no text ever
+    leaves the machine. This is the key contrast with Claude: Claude runs on Anthropic's servers
+    (needs internet, sends the prompt over the network each time), while MiniLM runs fully locally
+    after the one-time download.</p>
+  </section>
+
+  <section class="card" id="step5">
+    <div class="card-head">
+      <span class="step-label">Step 5</span>
+    </div>
+    <h2>Embedding all chunks + a question, and comparing them</h2>
+
+    <p><strong>The problem we're solving:</strong> right now we can turn one chunk into a vector.
+    But real retrieval needs to compare a <em>question</em> against <em>every</em> chunk, and find
+    which chunks are most relevant. So we need:</p>
+
+    <ol>
+      <li>Vectors for all 14 chunks (not just chunk 0)</li>
+      <li>A vector for the question itself</li>
+      <li>A way to score "how similar" the question's vector is to each chunk's vector</li>
+      <li>Sort by that score and pick the top few</li>
+    </ol>
+
+    <p><strong>The logic behind cosine similarity, concretely.</strong> It measures the angle
+    between two vectors, not raw distance. The formula is:</p>
+
+    <pre><code>cosine_similarity(A, B) = (A · B) / (|A| × |B|)</code></pre>
+
+    <p>Where:</p>
+    <ul>
+      <li><code>A · B</code> is the <strong>dot product</strong>: multiply each corresponding pair
+      of numbers and sum them up. If <code>A = [a1, a2, a3]</code> and
+      <code>B = [b1, b2, b3]</code>, then <code>A · B = a1*b1 + a2*b2 + a3*b3</code>.</li>
+      <li><code>|A|</code> is the <strong>magnitude</strong> (length) of vector A:
+      <code>sqrt(a1² + a2² + a3²)</code>.</li>
+    </ul>
+
+    <p>The result is always between -1 and 1. <strong>1</strong> means pointing in exactly the same
+    direction (very similar meaning), <strong>0</strong> means unrelated, <strong>-1</strong> means
+    opposite meaning.</p>
+
+    <p><strong>Practically</strong> — you don't need to hand-write this math.
+    <code>sentence-transformers</code> ships a helper function,
+    <code>model.similarity(embeddings1, embeddings2)</code>, that computes this for you across many
+    vectors at once. That's the practical tool; the formula above is so you understand what that
+    function is actually computing, not magic.</p>
+
+    <p><strong>Task given:</strong> embed all chunks at once instead of just <code>chunks[0]</code>,
+    embed a test question the same way, and print both shapes to confirm.</p>
+
+    <p><strong>What you wrote and ran</strong> (commenting out the old single-chunk code instead
+    of deleting it — good instinct, keeps working reference code without cluttering output):</p>
+
+    <pre><code>chunk_embeddings = model.encode(chunks)
+print(chunk_embeddings.shape)
+question = "What is cosine similarity?"
+question_embedding = model.encode(question)
+print(question_embedding.shape)</code></pre>
+
+    <p><strong>Output:</strong></p>
+    <div class="example">
+      <div class="row"><span>chunk_embeddings.shape</span><b>(14, 384)</b></div>
+      <div class="row"><span>question_embedding.shape</span><b>(384,)</b></div>
+    </div>
+
+    <p><code>(14, 384)</code> is a 2D grid: 14 rows (one per chunk), 384 columns (one number per
+    dimension of each vector) — 14 chunks stacked on top of each other. <code>(384,)</code> is a
+    single 1D vector of 384 numbers; the trailing comma with nothing after it is Python's way of
+    marking a 1-dimensional shape, as opposed to the 2D <code>(14, 384)</code>.</p>
+
+    <div class="status">All 14 chunks + the question embedded — shapes confirmed correct</div>
+  </section>
+
+  <section class="card" id="step6">
+    <div class="card-head">
+      <span class="step-label">Step 6</span>
+    </div>
+    <h2>Computing similarity scores and finding the best match</h2>
+
+    <p><strong>The concept:</strong> we have <code>chunk_embeddings</code> (shape
+    <code>(14, 384)</code> — 14 vectors) and <code>question_embedding</code> (shape
+    <code>(384,)</code> — 1 vector). We want one similarity score per chunk: "how close is this
+    chunk's vector to the question's vector?"</p>
+
+    <p><code>sentence-transformers</code> gives you <code>model.similarity(a, b)</code>, which
+    compares every vector in <code>a</code> against every vector in <code>b</code>. Since our
+    question is just one vector against 14 chunk vectors, the result is a grid of shape
+    <code>(1, 14)</code> — 1 row (the one question) by 14 columns (one score per chunk).</p>
+
+    <pre><code>scores = model.similarity(question_embedding, chunk_embeddings)
+print(scores)
+print(scores.shape)</code></pre>
+
+    <p><strong>Finding the best match.</strong> Since <code>scores</code> has shape
+    <code>(1, 14)</code>, we need the first (and only) row: <code>scores[0]</code>. That row has 14
+    numbers — one per chunk. We want the <em>index</em> of the largest number, not the number
+    itself, because the index tells us <em>which chunk</em> to go retrieve. The tensors returned by
+    <code>similarity</code> (from the <code>torch</code> library) have a method for exactly this:
+    <code>.argmax()</code>.</p>
+
+    <pre><code>best_index = scores[0].argmax()
+print("best chunk index:", best_index)
+print("best chunk text:", chunks[best_index])</code></pre>
+
+    <p><code>argmax</code> = "argument that gives the maximum" — it returns the <em>position</em>
+    of the highest value, not the value itself. This is a common pattern name across ML/data
+    science, worth remembering.</p>
+
+    <p><strong>Result — it worked:</strong></p>
+
+    <div class="example">
+      <div class="row"><span>question</span><b>"What is cosine similarity?"</b></div>
+      <div class="row"><span>best chunk index</span><b>6</b></div>
+      <div class="row"><span>best score</span><b>0.7096 (next: 0.4595)</b></div>
+      <div class="row"><span>retrieved text</span><b>"Cosine similarity measures the angle between two vectors rather than their raw distance."</b></div>
+    </div>
+
+    <p>Chunk 6 scored far ahead of every other chunk, and reading it confirms it's genuinely the
+    right answer to the question — not a coincidence. This is retrieval actually working: the
+    question never shared many exact words with the chunk beyond "cosine similarity" itself, but
+    the embedding model matched them on <em>meaning</em>.</p>
+
+    <p><strong>Question raised: why did one tensor print with double brackets <code>[[...]]</code>
+    and another with single brackets <code>[...]</code>?</strong></p>
+
+    <p><code>scores</code> — the full result of <code>model.similarity(...)</code> — printed as
+    <code>tensor([[0.2229, ...]])</code>, shape <code>(1, 14)</code>. Double brackets mean a 2D
+    grid: the outer bracket is "the list of rows" (just 1 row here, since there's 1 question), the
+    inner bracket is "the list of scores in that row" (14 of them). <code>similarity</code> always
+    returns a full grid comparing every vector in the first argument against every vector in the
+    second — even with only 1 question, it's still "1 row of comparisons."</p>
+
+    <p><code>scores[0]</code> — indexing into that grid to grab row 0 — printed as
+    <code>tensor([0.2229, ...])</code>, single brackets, 1D. Reaching in with <code>[0]</code>
+    strips away one layer of structure: a single row on its own is just a plain list of 14
+    numbers, no longer "a grid."</p>
+
+    <p>Same rule as Step 5's <code>chunk_embeddings.shape = (14, 384)</code> vs
+    <code>question_embedding.shape = (384,)</code> — the number of bracket-levels (dimensions)
+    always matches how many levels of grouping actually exist in the data.</p>
+
+    <div class="status">Retrieval working end-to-end — correct chunk found for a real question</div>
+  </section>
+
+  <section class="card" id="step7">
+    <div class="card-head">
+      <span class="step-label">Step 7</span>
+    </div>
+    <h2>Generation — turning a retrieved chunk into a real answer</h2>
+
+    <p><strong>The concept:</strong> <code>chunks[best_index]</code> is raw retrieved text, not an
+    answer — it's just the most relevant paragraph. The final RAG step hands that paragraph to
+    Claude along with the question, and lets Claude write an actual natural-language answer,
+    grounded in that text.</p>
+
+    <p><strong>System prompt vs user prompt, applied here</strong> (same distinction from
+    <code>llm_basics.txt</code>):</p>
+    <ul>
+      <li><strong>System prompt</strong> — sets Claude's behavior for the whole exchange: "You are
+      a helpful assistant. Only answer using the provided context. If the answer isn't in the
+      context, say so clearly." This is what stops Claude from just using its own general
+      knowledge instead of the retrieved chunk — grounded answers, not guesses, is the entire
+      point of RAG.</li>
+      <li><strong>User prompt</strong> — the actual content for this specific call: the retrieved
+      chunk(s) plus the question, e.g.
+      <code>"Context:\n{chunk}\n\nQuestion: {question}"</code>.</li>
+    </ul>
+
+    <p><strong>The API call itself:</strong> the <code>anthropic</code> Python library gives you a
+    <code>Client</code> object; calling <code>.messages.create(...)</code> on it takes a model
+    name, a <code>system</code> prompt, and a <code>messages</code> list with the user prompt. It
+    reads the API key automatically from the <code>ANTHROPIC_API_KEY</code> environment variable —
+    no key typed into the script.</p>
+
+    <p><strong>First task — install only:</strong></p>
+    <pre><code>pip install anthropic</code></pre>
+
+    <div class="status">anthropic library installed</div>
+
+    <p style="margin-top:22px"><strong>Building the call, piece by piece.</strong></p>
+
+    <p><em>Import and client setup</em> — at the top of the file:</p>
+    <pre><code>from anthropic import Anthropic</code></pre>
+    <p>Then, near where the embedding model was loaded, create a client:</p>
+    <pre><code>client = Anthropic()</code></pre>
+    <p>No key argument needed — it reads <code>ANTHROPIC_API_KEY</code> from the environment
+    automatically.</p>
+
+    <p><em>Building the prompt</em> — combine the retrieved chunk and the question into one string
+    using an f-string, which lets you drop variables directly into a string with
+    <code>{variable_name}</code> instead of gluing pieces together with <code>+</code>:</p>
+    <pre><code>context = chunks[best_index]
+prompt = f"Context:\n{context}\n\nQuestion: {question}"</code></pre>
+
+    <p><em>Making the call</em> — the actual API request:</p>
+    <pre><code>response = client.messages.create(
+    model="claude-sonnet-4-5",
+    max_tokens=300,
+    system="You are a helpful assistant. Only answer using the provided context. If the answer isn't in the context, say so clearly.",
+    messages=[
+        {"role": "user", "content": prompt}
+    ]
+)
+print(response.content[0].text)</code></pre>
+
+    <p>Notes on the pieces:</p>
+    <ul>
+      <li><code>model="claude-sonnet-4-5"</code> — picks which Claude model answers.</li>
+      <li><code>max_tokens=300</code> — caps how long the response can be (from the tokens
+      discussion in <code>llm_basics.txt</code>).</li>
+      <li><code>messages</code> is a list because a real conversation could have multiple
+      back-and-forth turns; here there's only one.</li>
+      <li><code>response.content[0].text</code> — the response is a structured object, not plain
+      text. <code>content</code> is a list of content blocks (usually one, for a plain text
+      answer), so <code>[0]</code> grabs the first block and <code>.text</code> pulls the string
+      out of it.</li>
+    </ul>
+
+    <div class="callout warn">
+      <strong>Error hit on first run:</strong>
+      <pre style="margin-top:10px"><code>anthropic.BadRequestError: Error code: 400 - Invalid model name passed in model=claude-sonnet-4-5.
+Call `/v1/models` to view available models for your key.</code></pre>
+    </div>
+
+    <p><strong>Cause:</strong> <code>client.models.list()</code> showed this API key routes
+    through an organization gateway that serves many providers (Claude, GPT, Gemini, Llama,
+    Mistral, and more) — common in corporate setups. The short alias
+    <code>"claude-sonnet-4-5"</code> isn't a valid id on this gateway; the full dated identifier
+    is: <code>claude-sonnet-4-5-20250929</code>.</p>
+
+    <p><strong>Fix:</strong> use the dated model string.</p>
+    <pre><code>model="claude-sonnet-4-5-20250929"</code></pre>
+
+    <div class="status">Model name fixed, API call works</div>
+
+    <p style="margin-top:22px"><strong>Question raised: what is "20250929" and why is it needed?</strong></p>
+
+    <p>It's a <strong>release date</strong>, written as <code>YYYYMMDD</code> → year 2025, month
+    09, day 29 → September 29, 2025 — the day this specific version of Claude Sonnet 4.5 was
+    released.</p>
+
+    <p><strong>Why models are named with a date:</strong> AI labs periodically release updated
+    versions of "the same" model — same name/tier, but retrained or improved. Without a date,
+    the API wouldn't know which snapshot in time is meant. Pinning the exact date means:</p>
+    <ul>
+      <li>The code's behavior won't silently change if a newer snapshot is released later — the
+      exact same model version runs every time, indefinitely (while that version stays available).</li>
+      <li>It's reproducible — running this again in six months, or showing it to someone else,
+      gives identical behavior, not "whatever is current now."</li>
+    </ul>
+
+    <p>Same idea as pinning a package version in <code>requirements.txt</code>
+    (<code>sentence-transformers==3.0.1</code>) instead of installing "whatever's latest" —
+    trading a little flexibility for predictability. This particular gateway doesn't support the
+    shorthand <code>"claude-sonnet-4-5"</code> as an alias for "latest," so the dated id is
+    required here.</p>
+
+    <p><strong>Full pipeline result — first end-to-end run:</strong></p>
+
+    <div class="example">
+      <div class="row"><span>question</span><b>"What is cosine similarity?"</b></div>
+      <div class="row"><span>retrieved chunk</span><b>index 6, score 0.7096</b></div>
+      <div class="row"><span>Claude's answer</span><b>"Cosine similarity measures the angle between two vectors rather than their raw distance... it's a way to determine how similar two things are by comparing the direction they point in a mathematical space, regardless of their magnitude or length."</b></div>
+    </div>
+
+    <p>This is the full RAG pipeline, built from scratch: raw text file → chunked → embedded →
+    question embedded → cosine similarity found the right chunk → Claude generated a real,
+    readable answer grounded in that retrieved text, not from its own general knowledge.</p>
+
+    <div class="status">End-to-end RAG pipeline working — first successful grounded answer</div>
+  </section>
+
+  <footer class="page-footer">
+    Updated as we go — every concept, task, real output, error, and fix from the session lives here.
+  </footer>
+</div>
+
+<script>
+  const links = Array.from(document.querySelectorAll('.navlist a'));
+  const sections = links.map(a => document.querySelector(a.getAttribute('href')));
+
+  function onScroll() {
+    let activeIdx = 0;
+    const scrollPos = window.scrollY + 120;
+    sections.forEach((sec, i) => {
+      if (sec && sec.offsetTop <= scrollPos) activeIdx = i;
+    });
+    links.forEach((a, i) => a.classList.toggle('active', i === activeIdx));
+  }
+
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+</script>
+
+</body>
+</html>
