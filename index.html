@@ -1,68 +1,230 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Learning Logs</title>
+<title>Learning Logs — Siva Rama Naidu Thattikota</title>
+<meta name="description" content="Step-by-step backups of hands-on ML/GenAI learning sessions — concepts, code, real output, debugging detours.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg: #0b0d16;
-    --accent: #7dd3fc;
-    --accent-2: #a78bfa;
-    --text: #eef0f8;
-    --text-dim: #9aa0bd;
-    --surface: rgba(255, 255, 255, 0.045);
-    --border: rgba(255, 255, 255, 0.09);
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    min-height: 100vh;
-    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-    background:
-      radial-gradient(ellipse 900px 500px at 15% -10%, #24316b 0%, transparent 60%),
-      radial-gradient(ellipse 700px 600px at 100% 20%, #3b2f66 0%, transparent 55%),
-      var(--bg);
-    color: var(--text);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
-  }
-  .wrap { max-width: 560px; width: 100%; }
-  h1 {
-    font-size: 2rem;
-    margin: 0 0 10px;
-    background: linear-gradient(105deg, #fff 20%, var(--accent) 65%, var(--accent-2) 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-  }
-  p.sub { color: var(--text-dim); margin: 0 0 32px; }
-  a.card {
-    display: block;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 20px 22px;
-    margin-bottom: 14px;
-    text-decoration: none;
-    color: var(--text);
-    transition: background 0.15s ease, border-color 0.15s ease;
-  }
-  a.card:hover { background: rgba(255,255,255,0.08); border-color: rgba(125,211,252,0.3); }
-  a.card .name { font-weight: 600; font-size: 1.05rem; }
-  a.card .desc { color: var(--text-dim); font-size: 0.88rem; margin-top: 4px; }
+:root {
+  --bg: #0b0f14;
+  --panel: rgba(255, 255, 255, 0.045);
+  --panel-strong: rgba(255, 255, 255, 0.07);
+  --border: rgba(255, 255, 255, 0.10);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --text: #e8eef5;
+  --text-dim: #a4b2c2;
+  --text-faint: #6d7d8f;
+
+  --teal: #2dd4bf;
+  --teal-deep: #0e7c73;
+  --amber: #f6b545;
+  --violet: #8b8cf0;
+  --rose: #f472b6;
+  --sky: #56b6ff;
+
+  --shadow: 0 20px 60px -20px rgba(0, 0, 0, 0.7);
+  --radius: 18px;
+  --radius-sm: 12px;
+  --maxw: 900px;
+
+  --font-d: "Fraunces", Georgia, serif;
+  --font-b: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --mono: "JetBrains Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--font-b);
+  color: var(--text);
+  background: var(--bg);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: -25%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(38% 46% at 16% 14%, rgba(45, 212, 191, 0.16), transparent 62%),
+    radial-gradient(36% 42% at 84% 10%, rgba(246, 181, 69, 0.14), transparent 62%),
+    radial-gradient(44% 50% at 82% 84%, rgba(244, 114, 182, 0.13), transparent 62%),
+    radial-gradient(40% 46% at 12% 88%, rgba(139, 140, 240, 0.14), transparent 62%),
+    var(--bg);
+  filter: blur(20px);
+  animation: drift 26s ease-in-out infinite alternate;
+}
+
+@keyframes drift {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  50%  { transform: translate3d(2%, -2%, 0) scale(1.06); }
+  100% { transform: translate3d(-2%, 2%, 0) scale(1.03); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+.wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+
+nav.top {
+  position: sticky; top: 0; z-index: 50;
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  border-bottom: 1px solid var(--border);
+}
+nav.top .inner {
+  max-width: var(--maxw); margin: 0 auto; padding: 14px 24px;
+  display: flex; align-items: center; gap: 12px;
+}
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); }
+.brand .dot { width: 26px; height: 26px; border-radius: 8px; background: linear-gradient(135deg, var(--teal), var(--amber)); box-shadow: 0 0 18px rgba(45,212,191,.5); flex: none; }
+.brand span { font-family: var(--font-d); font-weight: 600; font-size: 1.05rem; }
+nav.top .meta { margin-left: auto; color: var(--text-faint); font-family: var(--mono); font-size: .78rem; }
+
+header.hero { padding: 84px 0 30px; text-align: left; }
+.eyebrow {
+  display: inline-flex; align-items: center; gap: 8px; font-size: .78rem; font-weight: 600;
+  letter-spacing: .12em; text-transform: uppercase; color: var(--teal);
+  padding: 6px 12px; border: 1px solid var(--border); border-radius: 999px; background: var(--panel);
+}
+h1 {
+  font-family: var(--font-d); font-weight: 600; font-size: clamp(2.2rem, 5vw, 3.2rem);
+  line-height: 1.06; letter-spacing: -0.02em; margin: 20px 0 14px; color: var(--text);
+}
+h1 .grad { background: linear-gradient(120deg, var(--teal), var(--amber) 65%, var(--rose)); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; }
+.lead { font-size: 1.1rem; color: var(--text-dim); max-width: 620px; margin: 0 0 8px; }
+
+.grid { display: grid; gap: 16px; grid-template-columns: repeat(3, 1fr); margin: 40px 0 60px; }
+@media (max-width: 720px) { .grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 480px) { .grid { grid-template-columns: 1fr; } }
+
+.stat {
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 20px 22px; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  box-shadow: var(--shadow); transition: .22s;
+}
+.stat:hover { border-color: var(--border-strong); transform: translateY(-3px); }
+.stat .n { font-size: 1.8rem; font-weight: 800; letter-spacing: -0.02em; font-family: var(--font-b); background: linear-gradient(120deg, var(--teal), var(--amber)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.stat .l { color: var(--text-dim); font-size: .85rem; margin-top: 3px; }
+
+.section-tag {
+  font-size: .78rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--text-faint); margin-bottom: 10px; font-family: var(--mono);
+}
+
+section { padding: 10px 0 60px; }
+
+.logs-grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+
+a.log-card {
+  position: relative;
+  display: flex; flex-direction: column; gap: 10px;
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 24px; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  box-shadow: var(--shadow); transition: .22s; text-decoration: none; color: inherit;
+  overflow: hidden;
+}
+a.log-card::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: linear-gradient(180deg, var(--teal), var(--amber), var(--rose)); opacity: 0; transition: opacity .2s;
+}
+a.log-card:hover { border-color: var(--border-strong); transform: translateY(-4px); }
+a.log-card:hover::before { opacity: 1; }
+
+.log-card .top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.log-card .ic {
+  width: 42px; height: 42px; border-radius: 11px; display: grid; place-items: center;
+  font-size: 1.2rem; border: 1px solid var(--border); background: rgba(45,212,191,.14); color: var(--teal);
+}
+.pill {
+  font-size: .7rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  padding: 4px 10px; border-radius: 999px; border: 1px solid rgba(45,212,191,.35);
+  background: rgba(45,212,191,.1); color: var(--teal);
+}
+.log-card h3 { font-family: var(--font-d); font-weight: 600; font-size: 1.2rem; margin: 4px 0 0; color: var(--text); letter-spacing: -0.01em; }
+.log-card p { color: var(--text-dim); font-size: .92rem; margin: 0; flex: 1; }
+.log-card .meta-row { display: flex; gap: 14px; font-family: var(--mono); font-size: .76rem; color: var(--text-faint); margin-top: 4px; }
+.log-card .go { color: var(--teal); font-weight: 600; font-size: .88rem; margin-top: 4px; }
+
+a.log-card.placeholder { opacity: .45; cursor: default; }
+a.log-card.placeholder:hover { transform: none; border-color: var(--border); }
+a.log-card.placeholder::before { display: none; }
+
+footer { border-top: 1px solid var(--border); padding: 34px 0 50px; margin-top: 10px; color: var(--text-faint); font-size: .88rem; }
+footer .inner { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; align-items: center; max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+footer a { color: var(--text-dim); text-decoration: none; }
+footer a:hover { color: var(--teal); }
 </style>
 </head>
 <body>
-  <div class="wrap">
-    <h1>Learning Logs</h1>
-    <p class="sub">Step-by-step backups of hands-on learning sessions — concepts, code, real output.</p>
-    <a class="card" href="mini-rag/">
-      <div class="name">mini-rag</div>
-      <div class="desc">Building a RAG pipeline from scratch — chunking, embeddings, retrieval, Claude generation.</div>
+
+<nav class="top">
+  <div class="inner">
+    <a class="brand" href="#">
+      <span class="dot"></span>
+      <span>Learning Logs</span>
     </a>
+    <span class="meta">learning-logs · github pages</span>
   </div>
+</nav>
+
+<div class="wrap">
+  <header class="hero">
+    <span class="eyebrow">● Hands-on ML / GenAI backups</span>
+    <h1>A record of every<br><span class="grad">concept, line, and bug</span></h1>
+    <p class="lead">Step-by-step backups of hands-on learning sessions — the concepts explained, the code written, the real output, and the debugging detours along the way. Not polished docs; a working log.</p>
+
+    <div class="grid">
+      <div class="stat"><div class="n">1</div><div class="l">Logs published</div></div>
+      <div class="stat"><div class="n">7</div><div class="l">Steps in mini-rag</div></div>
+      <div class="stat"><div class="n">100%</div><div class="l">Built by hand, guided</div></div>
+    </div>
+  </header>
+
+  <section>
+    <div class="section-tag">Browse logs</div>
+    <div class="logs-grid">
+      <a class="log-card" href="mini-rag/">
+        <div class="top">
+          <div class="ic">◈</div>
+          <span class="pill">Active</span>
+        </div>
+        <h3>mini-rag</h3>
+        <p>Building a RAG pipeline from scratch — chunking, local embeddings, cosine-similarity retrieval, and grounded generation with Claude.</p>
+        <div class="meta-row"><span>7 steps</span><span>Python</span><span>sentence-transformers + anthropic</span></div>
+        <span class="go">Open the log →</span>
+      </a>
+
+      <a class="log-card placeholder">
+        <div class="top">
+          <div class="ic" style="background:rgba(246,181,69,.14);color:var(--amber)">✦</div>
+        </div>
+        <h3>Next log</h3>
+        <p>Future hands-on sessions will land here — each one a self-contained backup you can reopen anytime.</p>
+      </a>
+    </div>
+  </section>
+</div>
+
+<footer>
+  <div class="inner">
+    <span>Learning Logs — a standing backup of hands-on sessions.</span>
+    <a href="https://github.com/SivaRamaNaiduThattikota/learning-logs">View source on GitHub →</a>
+  </div>
+</footer>
+
 </body>
 </html>
