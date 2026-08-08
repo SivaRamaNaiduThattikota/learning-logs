@@ -1,589 +1,347 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mini-RAG — Learning Log</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg: #0a0b12;
-    --surface: rgba(255, 255, 255, 0.04);
-    --surface-hover: rgba(255, 255, 255, 0.07);
-    --border: rgba(255, 255, 255, 0.08);
-    --border-strong: rgba(255, 255, 255, 0.15);
-    --accent: #8fd7ff;
-    --accent-2: #b9a3ff;
-    --accent-3: #ff9ecf;
-    --accent-soft: rgba(143, 215, 255, 0.13);
-    --good: #6ee7b7;
-    --text: #f3f4fb;
-    --text-dim: #9ea4c4;
-    --text-faint: #6a6f92;
-    --mono: 'Cascadia Code', 'JetBrains Mono', Consolas, monospace;
-    --sidebar-w: 280px;
-    --ease: cubic-bezier(0.22, 1, 0.36, 1);
-  }
-
-  * { box-sizing: border-box; }
-  html { scroll-behavior: smooth; }
-
-  body {
-    margin: 0;
-    font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
-    background:
-      radial-gradient(ellipse 1000px 560px at 12% -8%, #2b3a80 0%, transparent 58%),
-      radial-gradient(ellipse 800px 640px at 105% 15%, #4a2f7a 0%, transparent 52%),
-      radial-gradient(ellipse 600px 500px at 50% 100%, #1d3a4a 0%, transparent 50%),
-      var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    line-height: 1.7;
-    font-size: 15px;
-    -webkit-font-smoothing: antialiased;
-  }
-
-  /* ---------- Sidebar ---------- */
-
-  .sidebar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: var(--sidebar-w);
-    height: 100vh;
-    padding: 28px 18px;
-    overflow-y: auto;
-    background: rgba(10, 12, 22, 0.6);
-    backdrop-filter: blur(20px) saturate(160%);
-    -webkit-backdrop-filter: blur(20px) saturate(160%);
-    border-right: 1px solid var(--border);
-    z-index: 100;
-  }
-
-  .sidebar .brand {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 4px 10px 22px;
-  }
-
-  .brand .dot {
-    width: 9px;
-    height: 9px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--accent), var(--accent-2));
-    box-shadow: 0 0 14px rgba(125, 211, 252, 0.7);
-  }
-
-  .brand span {
-    font-weight: 700;
-    font-size: 0.95rem;
-    letter-spacing: 0.01em;
-  }
-
-  .brand small {
-    display: block;
-    color: var(--text-faint);
-    font-size: 0.68rem;
-    font-weight: 500;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    margin-top: 1px;
-  }
-
-  .progress-track {
-    margin: 0 10px 20px;
-    height: 4px;
-    border-radius: 4px;
-    background: var(--surface);
-    overflow: hidden;
-  }
-
-  .progress-fill {
-    height: 100%;
-    border-radius: 4px;
-    background: linear-gradient(90deg, var(--accent), var(--accent-2));
-    width: 100%;
-    transition: width 0.3s ease;
-  }
-
-  .progress-label {
-    margin: -14px 10px 18px;
-    font-size: 0.72rem;
-    color: var(--text-faint);
-  }
-
-  .navlist {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .navlist a {
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
-    padding: 9px 12px;
-    border-radius: 10px;
-    color: var(--text-dim);
-    text-decoration: none;
-    font-size: 0.85rem;
-    transition: background 0.18s var(--ease), color 0.18s var(--ease), transform 0.18s var(--ease);
-    border: 1px solid transparent;
-  }
-
-  .navlist a .n {
-    font-family: var(--mono);
-    font-size: 0.72rem;
-    color: var(--text-faint);
-    flex-shrink: 0;
-    width: 16px;
-    transition: color 0.18s var(--ease);
-  }
-
-  .navlist a:hover {
-    background: var(--surface-hover);
-    color: var(--text);
-    transform: translateX(2px);
-  }
-
-  .navlist a.active {
-    background: linear-gradient(90deg, var(--accent-soft), transparent);
-    border-color: rgba(143, 215, 255, 0.22);
-    color: var(--text);
-    box-shadow: inset 2px 0 0 var(--accent);
-  }
-
-  .navlist a.active .n {
-    color: var(--accent);
-  }
-
-  .sidebar-footer {
-    margin-top: 24px;
-    padding: 14px 12px 4px;
-    border-top: 1px solid var(--border);
-    color: var(--text-faint);
-    font-size: 0.72rem;
-    line-height: 1.5;
-  }
-
-  /* ---------- Main content ---------- */
-
-  .main {
-    margin-left: var(--sidebar-w);
-    max-width: 760px;
-    padding: 64px 48px 140px;
-  }
-
-  header.hero {
-    margin-bottom: 52px;
-  }
-
-  .hero .eyebrow {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    font-size: 0.72rem;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--accent);
-    background: var(--accent-soft);
-    border: 1px solid rgba(125, 211, 252, 0.25);
-    padding: 5px 12px;
-    border-radius: 999px;
-    margin-bottom: 18px;
-  }
-
-  header.hero h1 {
-    font-size: 2.3rem;
-    line-height: 1.15;
-    margin: 0 0 12px;
-    letter-spacing: -0.01em;
-    background: linear-gradient(105deg, #ffffff 20%, var(--accent) 65%, var(--accent-2) 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-  }
-
-  header.hero p {
-    color: var(--text-dim);
-    margin: 0 0 28px;
-    font-size: 1.02rem;
-    max-width: 560px;
-  }
-
-  .stat-row {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-    max-width: 560px;
-  }
-
-  .stat-tile {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 14px 16px;
-    transition: border-color 0.2s var(--ease), transform 0.2s var(--ease), background 0.2s var(--ease);
-  }
-
-  .stat-tile:hover {
-    border-color: var(--border-strong);
-    background: var(--surface-hover);
-    transform: translateY(-2px);
-  }
-
-  .stat-tile .num {
-    font-size: 1.5rem;
-    font-weight: 700;
-    letter-spacing: -0.01em;
-    background: linear-gradient(105deg, var(--accent), var(--accent-2));
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-  }
-
-  .stat-tile .lbl {
-    font-size: 0.72rem;
-    color: var(--text-faint);
-    margin-top: 2px;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
-
-  section.card {
-    position: relative;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 32px 34px;
-    margin-bottom: 28px;
-    scroll-margin-top: 40px;
-    transition: border-color 0.25s var(--ease), background 0.25s var(--ease), transform 0.25s var(--ease), box-shadow 0.25s var(--ease);
-  }
-
-  section.card:hover {
-    border-color: var(--border-strong);
-    background: rgba(255, 255, 255, 0.055);
-    box-shadow: 0 20px 50px -20px rgba(0, 0, 0, 0.5);
-  }
-
-  section.card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 3px;
-    height: 100%;
-    border-radius: 20px 0 0 20px;
-    background: linear-gradient(180deg, var(--accent), var(--accent-2), var(--accent-3));
-    opacity: 0.55;
-  }
-
-  .card-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 16px;
-  }
-
-  .step-label {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.07em;
-    text-transform: uppercase;
-    color: var(--accent);
-    background: var(--accent-soft);
-    border: 1px solid rgba(125, 211, 252, 0.28);
-    padding: 4px 11px;
-    border-radius: 999px;
-  }
-
-  .step-label.wip {
-    color: #fcd34d;
-    background: rgba(252, 211, 77, 0.12);
-    border-color: rgba(252, 211, 77, 0.3);
-  }
-
-  .card h2 {
-    margin: 0 0 16px;
-    font-size: 1.32rem;
-    letter-spacing: -0.005em;
-    color: var(--text);
-  }
-
-  .card p {
-    color: var(--text-dim);
-    margin: 0 0 14px;
-  }
-
-  .card p:last-of-type { margin-bottom: 0; }
-  .card > *:last-child { margin-bottom: 0 !important; }
-
-  .card strong { color: var(--text); font-weight: 600; }
-  .card em { color: var(--text); font-style: normal; font-weight: 600; }
-
-  .card ul, .card ol {
-    color: var(--text-dim);
-    margin: 0 0 14px;
-    padding-left: 22px;
-  }
-
-  .card li { margin-bottom: 6px; }
-  .card li:last-child { margin-bottom: 0; }
-
-  code {
-    background: rgba(255, 255, 255, 0.09);
-    padding: 2.5px 7px;
-    border-radius: 6px;
-    font-family: var(--mono);
-    font-size: 0.87em;
-    color: #a5f0c8;
-    white-space: nowrap;
-  }
-
-  pre {
-    background: #060812;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 18px 20px;
-    overflow-x: auto;
-    margin: 16px 0;
-    position: relative;
-  }
-
-  pre::before {
-    content: '';
-    position: absolute;
-    top: 12px;
-    left: 16px;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #ef476f;
-    box-shadow: 16px 0 0 #ffd166, 32px 0 0 #06d6a0;
-    opacity: 0.55;
-  }
-
-  pre code {
-    background: none;
-    padding: 0;
-    color: #cdebe0;
-    font-size: 0.86rem;
-    white-space: pre;
-    display: block;
-    margin-top: 14px;
-    line-height: 1.6;
-  }
-
-  .callout {
-    background: rgba(167, 139, 250, 0.07);
-    border: 1px solid rgba(167, 139, 250, 0.2);
-    border-radius: 12px;
-    padding: 16px 20px;
-    margin: 16px 0;
-    font-size: 0.93rem;
-  }
-
-  .callout.warn {
-    background: rgba(251, 146, 60, 0.08);
-    border-color: rgba(251, 146, 60, 0.25);
-  }
-
-  .example {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 6px 18px;
-    margin: 16px 0;
-    font-size: 0.9rem;
-  }
-
-  .example .row {
-    display: flex;
-    justify-content: space-between;
-    gap: 16px;
-    color: var(--text-dim);
-    padding: 10px 4px;
-    border-bottom: 1px solid var(--border);
-    border-radius: 6px;
-    transition: background 0.15s ease;
-  }
-
-  .example .row:hover {
-    background: rgba(255, 255, 255, 0.025);
-  }
-
-  .example .row:last-child { border-bottom: none; }
-  .example .row span { flex-shrink: 0; color: var(--text-faint); }
-  .example .row b { color: var(--accent); font-weight: 600; text-align: right; }
-
-  .status {
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    font-size: 0.86rem;
-    color: var(--good);
-    margin-top: 18px;
-    padding-top: 16px;
-    border-top: 1px dashed var(--border);
-  }
-
-  .status::before {
-    content: '✓';
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 20px;
-    height: 20px;
-    background: rgba(110, 231, 183, 0.15);
-    border-radius: 50%;
-    font-size: 0.68rem;
-    flex-shrink: 0;
-  }
-
-  .status.pending {
-    color: var(--text-faint);
-  }
-
-  .status.pending::before {
-    content: '…';
-    background: rgba(154, 160, 189, 0.15);
-  }
-
-  footer.page-footer {
-    color: var(--text-faint);
-    font-size: 0.8rem;
-    padding: 24px 4px 0;
-    opacity: 0.85;
-  }
-
-  /* ---------- Mobile top bar + drawer ---------- */
-
-  .mobile-bar {
-    display: none;
-    position: sticky;
-    top: 0;
-    z-index: 200;
-    align-items: center;
-    justify-content: space-between;
-    padding: 14px 18px;
-    background: rgba(10, 12, 22, 0.75);
-    backdrop-filter: blur(18px) saturate(160%);
-    -webkit-backdrop-filter: blur(18px) saturate(160%);
-    border-bottom: 1px solid var(--border);
-  }
-
-  .mobile-bar .brand {
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    padding: 0;
-  }
-
-  .mobile-bar .brand span { font-weight: 700; font-size: 0.95rem; }
-
-  .menu-btn {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 4px;
-    width: 36px;
-    height: 36px;
-    padding: 0;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 9px;
-    cursor: pointer;
-  }
-
-  .menu-btn span {
-    display: block;
-    width: 16px;
-    height: 2px;
-    margin: 0 auto;
-    background: var(--text);
-    border-radius: 2px;
-    transition: transform 0.2s ease, opacity 0.2s ease;
-  }
-
-  .menu-btn.open span:nth-child(1) { transform: translateY(6px) rotate(45deg); }
-  .menu-btn.open span:nth-child(2) { opacity: 0; }
-  .menu-btn.open span:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
-
-  .scrim {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 150;
-    opacity: 0;
-    transition: opacity 0.2s ease;
-  }
-
-  .scrim.show { display: block; opacity: 1; }
-
-  @media (max-width: 900px) {
-    .mobile-bar { display: flex; }
-
-    .sidebar {
-      transform: translateX(-100%);
-      transition: transform 0.25s ease;
-      width: min(80vw, 300px);
-      box-shadow: 20px 0 40px rgba(0, 0, 0, 0.4);
-    }
-
-    .sidebar.open { transform: translateX(0); }
-
-    .main { margin-left: 0; padding: 32px 20px 100px; }
-
-    header.hero h1 { font-size: 1.85rem; }
-    section.card { padding: 24px 20px; }
-    .example .row { flex-direction: column; align-items: flex-start; gap: 4px; }
-    .example .row b { text-align: left; }
-  }
-
-  @media (max-width: 480px) {
-    .main { padding: 24px 14px 90px; }
-    section.card { padding: 20px 16px; border-radius: 16px; }
-    header.hero h1 { font-size: 1.6rem; }
-    pre { padding: 14px 14px; }
-    pre code { font-size: 0.8rem; }
-  }
+:root {
+  --bg: #0b0f14;
+  --bg-2: #0f151d;
+  --panel: rgba(255, 255, 255, 0.045);
+  --panel-strong: rgba(255, 255, 255, 0.07);
+  --border: rgba(255, 255, 255, 0.10);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --text: #e8eef5;
+  --text-dim: #a4b2c2;
+  --text-faint: #6d7d8f;
+
+  --teal: #2dd4bf;
+  --teal-deep: #0e7c73;
+  --amber: #f6b545;
+  --violet: #8b8cf0;
+  --rose: #f472b6;
+  --sky: #56b6ff;
+
+  --shadow: 0 20px 60px -20px rgba(0, 0, 0, 0.7);
+  --radius: 18px;
+  --radius-sm: 12px;
+  --sidebar-w: 260px;
+
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace, Menlo, Consolas, monospace;
+}
+
+[data-theme="light"] {
+  --bg: #f5f2ec;
+  --bg-2: #efeae1;
+  --panel: rgba(255, 255, 255, 0.66);
+  --panel-strong: rgba(255, 255, 255, 0.85);
+  --border: rgba(20, 30, 40, 0.10);
+  --border-strong: rgba(20, 30, 40, 0.18);
+  --text: #1a2430;
+  --text-dim: #4a5866;
+  --text-faint: #7b8794;
+  --teal-deep: #0c6b63;
+  --shadow: 0 20px 50px -24px rgba(30, 40, 55, 0.4);
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  color: var(--text);
+  background: var(--bg);
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  transition: background-color .4s ease, color .3s ease;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(60% 50% at 12% 6%, rgba(45, 212, 191, 0.14), transparent 60%),
+    radial-gradient(55% 45% at 92% 12%, rgba(246, 181, 69, 0.12), transparent 62%),
+    radial-gradient(60% 60% at 78% 96%, rgba(139, 140, 240, 0.12), transparent 60%),
+    var(--bg);
+}
+
+/* ---------- Sidebar ---------- */
+
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: var(--sidebar-w);
+  height: 100vh;
+  padding: 26px 16px;
+  overflow-y: auto;
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border-right: 1px solid var(--border);
+  z-index: 100;
+  transition: transform .28s cubic-bezier(.4,1.2,.5,1);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px 20px;
+  text-decoration: none;
+  color: var(--text);
+}
+
+.brand .dot {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--teal), var(--amber));
+  box-shadow: 0 0 18px rgba(45, 212, 191, .5);
+  flex: none;
+}
+
+.brand span { font-weight: 700; letter-spacing: -0.01em; font-size: 0.95rem; }
+.brand small { display: block; color: var(--text-faint); font-weight: 500; font-size: .72rem; margin-top: -2px; }
+
+.progress-track {
+  margin: 0 8px 6px;
+  height: 4px;
+  border-radius: 4px;
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--teal), var(--amber));
+  width: 100%;
+}
+
+.progress-label {
+  margin: 0 8px 18px;
+  font-size: .72rem;
+  color: var(--text-faint);
+}
+
+.navlist { display: flex; flex-direction: column; gap: 2px; }
+
+.navlist a {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 9px;
+  color: var(--text-dim);
+  text-decoration: none;
+  font-size: .87rem;
+  font-weight: 500;
+  transition: .18s;
+}
+
+.navlist a .n {
+  font-family: var(--mono);
+  font-size: .72rem;
+  color: var(--text-faint);
+  flex-shrink: 0;
+  width: 16px;
+}
+
+.navlist a:hover { color: var(--text); background: var(--panel); }
+.navlist a.active { color: var(--text); background: var(--panel-strong); box-shadow: inset 0 0 0 1px var(--border), inset 2px 0 0 var(--teal); }
+.navlist a.active .n { color: var(--teal); }
+
+.sidebar-footer {
+  margin-top: 22px;
+  padding: 14px 10px 4px;
+  border-top: 1px solid var(--border);
+  color: var(--text-faint);
+  font-size: .72rem;
+  line-height: 1.5;
+}
+
+/* ---------- Mobile bar ---------- */
+
+.mobile-bar {
+  display: none;
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  border-bottom: 1px solid var(--border);
+}
+
+.icon-btn {
+  border: 1px solid var(--border); background: var(--panel); color: var(--text);
+  width: 38px; height: 38px; border-radius: 10px; cursor: pointer; font-size: 1rem; flex: none;
+  display: inline-flex; align-items: center; justify-content: center; transition: .18s;
+}
+.icon-btn:hover { background: var(--panel-strong); }
+
+.scrim {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 150;
+}
+.scrim.show { display: block; }
+
+@media (max-width: 900px) {
+  .mobile-bar { display: flex; }
+  .sidebar { transform: translateX(-100%); width: min(82vw, 300px); }
+  .sidebar.open { transform: translateX(0); }
+  .main { margin-left: 0 !important; padding: 28px 18px 100px !important; }
+}
+
+/* ---------- Main content ---------- */
+
+.main {
+  margin-left: var(--sidebar-w);
+  max-width: 760px;
+  padding: 60px 44px 140px;
+}
+
+.eyebrow {
+  display: inline-flex; align-items: center; gap: 8px; font-size: .78rem; font-weight: 600;
+  letter-spacing: .12em; text-transform: uppercase; color: var(--teal);
+  padding: 6px 12px; border: 1px solid var(--border); border-radius: 999px; background: var(--panel);
+}
+
+h1 { font-size: clamp(1.9rem, 4vw, 2.5rem); line-height: 1.1; letter-spacing: -0.02em; margin: 18px 0 12px; font-weight: 800; }
+h1 .grad { background: linear-gradient(120deg, var(--teal), var(--amber) 65%, var(--rose)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+h2 { font-size: 1.4rem; letter-spacing: -0.015em; margin: 0 0 16px; font-weight: 750; color: var(--text); }
+
+.lead { font-size: 1.02rem; color: var(--text-dim); max-width: 560px; margin: 0 0 26px; }
+
+.grid { display: grid; gap: 14px; grid-template-columns: repeat(3, 1fr); max-width: 560px; margin-bottom: 44px; }
+@media (max-width: 900px) { .grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 480px) { .grid { grid-template-columns: 1fr 1fr; } }
+
+.card {
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 22px; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  box-shadow: var(--shadow); transition: .22s;
+}
+.card:hover { border-color: var(--border-strong); transform: translateY(-3px); }
+
+.stat { text-align: left; padding: 16px 18px; }
+.stat .n { font-size: 1.7rem; font-weight: 800; letter-spacing: -0.02em; background: linear-gradient(120deg, var(--teal), var(--amber)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.stat .l { color: var(--text-dim); font-size: .8rem; margin-top: 2px; }
+
+section.step {
+  position: relative;
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 30px 32px; margin-bottom: 26px; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  box-shadow: var(--shadow); transition: .22s;
+  scroll-margin-top: 30px;
+}
+section.step:hover { border-color: var(--border-strong); }
+section.step::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  border-radius: var(--radius) 0 0 var(--radius);
+  background: linear-gradient(180deg, var(--teal), var(--amber), var(--rose));
+}
+
+.step-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+
+.pill { display: inline-block; font-size: .74rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 4px 11px; border-radius: 999px; border: 1px solid var(--border); background: var(--panel); color: var(--text-dim); }
+.pill.teal { color: var(--teal); border-color: rgba(45,212,191,.35); background: rgba(45,212,191,.1); }
+.pill.amber { color: var(--amber); border-color: rgba(246,181,69,.35); background: rgba(246,181,69,.1); }
+
+.step p { color: var(--text-dim); margin: 0 0 14px; }
+.step p:last-of-type { margin-bottom: 0; }
+.step > *:last-child { margin-bottom: 0 !important; }
+.step strong { color: var(--text); font-weight: 650; }
+.step em { color: var(--text); font-style: normal; font-weight: 650; }
+.step ul, .step ol { color: var(--text-dim); margin: 0 0 14px; padding-left: 22px; }
+.step li { margin-bottom: 6px; }
+.step li:last-child { margin-bottom: 0; }
+
+code {
+  font-family: var(--mono); font-size: .86em; background: var(--panel-strong);
+  padding: 2px 6px; border-radius: 6px; border: 1px solid var(--border); color: var(--text);
+  white-space: nowrap;
+}
+
+pre {
+  background: #05080c; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 16px 18px; overflow-x: auto; margin: 16px 0;
+}
+[data-theme="light"] pre { background: #10161d; color: #d6e0ea; }
+pre code { background: none; border: none; padding: 0; color: #cbd7e3; font-size: .85rem; line-height: 1.6; white-space: pre; display: block; }
+
+.callout {
+  border: 1px solid var(--border); border-left: 3px solid var(--amber); background: var(--panel);
+  border-radius: var(--radius-sm); padding: 16px 18px; margin: 16px 0; font-size: .93rem;
+}
+.callout.info { border-left-color: var(--sky); }
+.callout.win { border-left-color: var(--teal); }
+.callout.warn { border-left-color: var(--rose); }
+.callout p { margin: 6px 0 0; color: var(--text-dim); }
+.callout p:first-child { margin-top: 0; }
+
+.table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--panel); margin: 16px 0; }
+table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+th, td { text-align: left; padding: 10px 16px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { color: var(--text); font-weight: 700; font-size: .78rem; letter-spacing: .04em; text-transform: uppercase; background: var(--panel-strong); }
+td { color: var(--text-dim); }
+tr:last-child td { border-bottom: none; }
+td b { color: var(--teal); font-weight: 650; }
+
+.status {
+  display: flex; align-items: center; gap: 9px; font-size: .87rem; color: var(--teal);
+  margin-top: 18px; padding-top: 16px; border-top: 1px dashed var(--border);
+}
+.status::before {
+  content: '✓'; display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; background: rgba(45, 212, 191, 0.15); border-radius: 50%;
+  font-size: .68rem; flex-shrink: 0;
+}
+.status.pending { color: var(--text-faint); }
+.status.pending::before { content: '…'; background: var(--panel-strong); }
+
+.page-footer {
+  color: var(--text-faint); font-size: .82rem; padding: 24px 4px 0; border-top: 1px solid var(--border);
+  margin-top: 10px;
+}
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
 <body>
 
 <div class="mobile-bar">
-  <div class="brand">
-    <span class="dot" style="width:8px;height:8px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-2));box-shadow:0 0 12px rgba(143,215,255,0.7);"></span>
+  <a class="brand" href="#" style="padding:0">
+    <span class="dot" style="width:22px;height:22px"></span>
     <span>mini-rag</span>
-  </div>
-  <button class="menu-btn" id="menuBtn" aria-label="Toggle navigation">
-    <span></span><span></span><span></span>
-  </button>
+  </a>
+  <button class="icon-btn" id="menuBtn" aria-label="Toggle navigation">☰</button>
 </div>
 
 <div class="scrim" id="scrim"></div>
 
 <aside class="sidebar" id="sidebar">
-  <div class="brand">
+  <a class="brand" href="#">
     <span class="dot"></span>
-    <div>
-      <span>mini-rag</span>
-      <small>Learning Log</small>
-    </div>
-  </div>
+    <div><span>mini-rag</span><small>Learning Log</small></div>
+  </a>
 
-  <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
-  <div class="progress-label" id="progressLabel">7 / 7 steps</div>
+  <div class="progress-track"><div class="progress-fill"></div></div>
+  <div class="progress-label">7 / 7 steps logged</div>
 
   <nav class="navlist" id="navlist">
     <a href="#step1"><span class="n">01</span>Chunking — the idea</a>
@@ -601,22 +359,18 @@
 </aside>
 
 <div class="main">
-  <header class="hero">
-    <span class="eyebrow">RAG from scratch</span>
-    <h1>Mini-RAG Learning Log</h1>
-    <p>A step-by-step backup of the RAG project you're building by hand — concepts, code, real output, and the debugging detours along the way.</p>
+  <span class="eyebrow">● RAG from scratch</span>
+  <h1>Mini-RAG <span class="grad">Learning Log</span></h1>
+  <p class="lead">A step-by-step backup of the RAG project you're building by hand — concepts, code, real output, and the debugging detours along the way.</p>
 
-    <div class="stat-row">
-      <div class="stat-tile"><div class="num">7</div><div class="lbl">Steps done</div></div>
-      <div class="stat-tile"><div class="num">384</div><div class="lbl">Vector dims</div></div>
-      <div class="stat-tile"><div class="num">3</div><div class="lbl">Docs indexed</div></div>
-    </div>
-  </header>
+  <div class="grid">
+    <div class="card stat"><div class="n">7</div><div class="l">Steps done</div></div>
+    <div class="card stat"><div class="n">384</div><div class="l">Vector dims</div></div>
+    <div class="card stat"><div class="n">3</div><div class="l">Docs indexed</div></div>
+  </div>
 
-  <section class="card" id="step1">
-    <div class="card-head">
-      <span class="step-label">Step 1</span>
-    </div>
+  <section class="step" id="step1">
+    <div class="step-head"><span class="pill teal">Step 1</span></div>
     <h2>Chunking — the idea</h2>
     <p>
       We're building <code>chunk_text(text, chunk_size, overlap)</code> — a function that
@@ -627,25 +381,23 @@
       <code>overlap</code> = how many of those characters repeat at the start of the next chunk,
       so an idea that spans a boundary doesn't get cut in half and lose its meaning.
     </p>
-    <p>
-      The number that actually matters for the loop is the <strong>step size</strong>:
-    </p>
+    <p>The number that actually matters for the loop is the <strong>step size</strong>:</p>
     <pre><code>step = chunk_size - overlap</code></pre>
     <p>This is how far the starting position moves forward for each new chunk.</p>
 
-    <div class="example">
-      <div class="row"><span>text length</span><b>1000</b></div>
-      <div class="row"><span>chunk_size</span><b>300</b></div>
-      <div class="row"><span>overlap</span><b>50</b></div>
-      <div class="row"><span>step (300 − 50)</span><b>250</b></div>
-      <div class="row"><span>chunk starts</span><b>0, 250, 500, 750</b></div>
-      <div class="row"><span>total chunks</span><b>4</b></div>
+    <div class="table-wrap">
+      <table>
+        <tr><td>text length</td><td><b>1000</b></td></tr>
+        <tr><td>chunk_size</td><td><b>300</b></td></tr>
+        <tr><td>overlap</td><td><b>50</b></td></tr>
+        <tr><td>step (300 − 50)</td><td><b>250</b></td></tr>
+        <tr><td>chunk starts</td><td><b>0, 250, 500, 750</b></td></tr>
+        <tr><td>total chunks</td><td><b>4</b></td></tr>
+      </table>
     </div>
 
-    <p>
-      The last chunk (starting at 750) only has 250 characters left instead of a full 300 —
-      that's expected. Whatever's left just becomes a shorter final chunk.
-    </p>
+    <p>The last chunk (starting at 750) only has 250 characters left instead of a full 300 —
+    that's expected. Whatever's left just becomes a shorter final chunk.</p>
 
     <p>What you wrote so far:</p>
     <pre><code>def chunk_text(text, chunk_size, overlap):
@@ -654,38 +406,35 @@
     <div class="status">Signature + docstring written</div>
   </section>
 
-  <section class="card" id="step2">
-    <div class="card-head">
-      <span class="step-label">Step 2</span>
-    </div>
+  <section class="step" id="step2">
+    <div class="step-head"><span class="pill teal">Step 2</span></div>
     <h2>The loop</h2>
-    <p>
-      Next we turn the "chunk starts" idea (<code>0, 250, 500, 750</code>) into an actual loop that
-      slices the string and stops once the start position goes past the end of the text.
-    </p>
+    <p>Next we turn the "chunk starts" idea (<code>0, 250, 500, 750</code>) into an actual loop that
+    slices the string and stops once the start position goes past the end of the text.</p>
 
     <p><strong>Walking through it by hand</strong> — <code>len(text)=1000, chunk_size=300, overlap=50, step=250</code>:</p>
 
-    <div class="example">
-      <div class="row"><span>iter 1 · start=0</span><b>text[0:300]</b></div>
-      <div class="row"><span>iter 2 · start=250</span><b>text[250:550]</b></div>
-      <div class="row"><span>iter 3 · start=500</span><b>text[500:800]</b></div>
-      <div class="row"><span>iter 4 · start=750</span><b>text[750:1050] → really text[750:1000]</b></div>
-      <div class="row"><span>iter 5 · start=1000</span><b>loop stops</b></div>
+    <div class="table-wrap">
+      <table>
+        <tr><td>iter 1 · start=0</td><td><b>text[0:300]</b></td></tr>
+        <tr><td>iter 2 · start=250</td><td><b>text[250:550]</b></td></tr>
+        <tr><td>iter 3 · start=500</td><td><b>text[500:800]</b></td></tr>
+        <tr><td>iter 4 · start=750</td><td><b>text[750:1050] → really text[750:1000]</b></td></tr>
+        <tr><td>iter 5 · start=1000</td><td><b>loop stops</b></td></tr>
+      </table>
     </div>
 
-    <p>
-      Python string slicing is forgiving: <code>text[750:1050]</code> on a 1000-character string
-      just returns up to character 1000, no error. That's why the shorter last chunk "just works" —
-      no special-case code needed.
-    </p>
+    <p>Python string slicing is forgiving: <code>text[750:1050]</code> on a 1000-character string
+    just returns up to character 1000, no error. That's why the shorter last chunk "just works" —
+    no special-case code needed.</p>
 
     <div class="callout warn">
-      <strong>Bug caught:</strong> the loop condition must be <code>start &lt; len(text)</code>, not
+      <strong>Bug caught:</strong>
+      <p>the loop condition must be <code>start &lt; len(text)</code>, not
       <code>start &lt;= len(text)</code>. With <code>&lt;=</code>, when <code>start == len(text)</code>
       (position 1000 in our example), <code>text[1000:1300]</code> is an empty string <code>""</code> —
       there's no character <em>at</em> index 1000 in a 1000-character string (valid indices are 0–999).
-      That extra iteration would append a useless empty chunk.
+      That extra iteration would append a useless empty chunk.</p>
     </div>
 
     <p><strong>What was still missing:</strong> the sliced <code>chunk</code> was computed but never saved.
@@ -693,7 +442,6 @@
     and <code>return chunks</code> after the loop ends.</p>
 
     <p><strong>Your final, correct version:</strong></p>
-
     <pre><code>def chunk_text(text, chunk_size, overlap):
     """Split text into overlapping chuncks of chunk_size characters."""
     step = chunk_size - overlap
@@ -708,10 +456,8 @@
     <div class="status">chunk_text complete and correct</div>
   </section>
 
-  <section class="card" id="step3">
-    <div class="card-head">
-      <span class="step-label">Step 3</span>
-    </div>
+  <section class="step" id="step3">
+    <div class="step-head"><span class="pill teal">Step 3</span></div>
     <h2>Running it on a real file</h2>
 
     <p><strong>The concept, in plain terms:</strong> so far <code>chunk_text</code> only works on
@@ -741,7 +487,6 @@
     Run the same script from a different folder and this exact path would fail.</p>
 
     <p>Putting it together — read the whole file into one string, chunk it, print each result:</p>
-
     <pre><code>with open("docs/embeddings.txt", "r", encoding="utf-8") as f:
     text = f.read()
 chunks = chunk_text(text, 300, 50)
@@ -755,32 +500,31 @@ for i, chunk in enumerate(chunks):
     <p><strong>Verifying the overlap by eye</strong> — the actual proof that the code does what
     Step 2 predicted, not just "it ran without crashing":</p>
 
-    <div class="example">
-      <div class="row"><span>chunk 0 ends with</span><b>"...use c"</b></div>
-      <div class="row"><span>chunk 1 starts with</span><b>"ther in that number space..."</b></div>
+    <div class="table-wrap">
+      <table>
+        <tr><td>chunk 0 ends with</td><td><b>"...use c"</b></td></tr>
+        <tr><td>chunk 1 starts with</td><td><b>"ther in that number space..."</b></td></tr>
+      </table>
     </div>
 
-    <p>
-      Chunk 1 repeats the tail end of chunk 0 word-for-word — that's the 50-character overlap
-      physically visible in real output, not just something we calculated on paper.
-    </p>
+    <p>Chunk 1 repeats the tail end of chunk 0 word-for-word — that's the 50-character overlap
+    physically visible in real output, not just something we calculated on paper.</p>
 
-    <div class="callout">
-      <strong>Debugging detour:</strong> the first run in the terminal appeared to print nothing.
+    <div class="callout info">
+      <strong>Debugging detour:</strong>
+      <p>the first run in the terminal appeared to print nothing.
       We re-ran it deliberately and it printed correctly, with the right working directory
       (<code>.../mini-rag</code>) and the right Python (3.12.4) confirmed via <code>pwd</code>,
       <code>dir mini_rag.py</code>, and <code>python --version</code>. We could not reproduce the
       empty-output result a second time, so it's logged as an unresolved one-off, not a fixed bug —
-      if it happens again, check working directory and Python version first.
+      if it happens again, check working directory and Python version first.</p>
     </div>
 
     <div class="status">chunk_text verified on real text — 14 chunks, overlap confirmed by eye</div>
   </section>
 
-  <section class="card" id="step4">
-    <div class="card-head">
-      <span class="step-label">Step 4</span>
-    </div>
+  <section class="step" id="step4">
+    <div class="step-head"><span class="pill teal">Step 4</span></div>
     <h2>Embeddings — turning chunks into vectors</h2>
 
     <p><strong>The concept:</strong> <code>sentence-transformers</code> gives you a pretrained
@@ -793,9 +537,7 @@ for i, chunk in enumerate(chunks):
     comparing vector directions — is what all of search and RAG retrieval is built on top of.</p>
 
     <p><strong>First task — installation only:</strong></p>
-
     <pre><code>pip install sentence-transformers</code></pre>
-
     <p>This pulls in <code>torch</code> (the deep learning library the model runs on) as a
     dependency, so it's a few hundred MB and can take a couple of minutes.</p>
 
@@ -807,9 +549,11 @@ for i, chunk in enumerate(chunks):
     <code>all-MiniLM-L6-v2</code>, which is the model we're about to load. Whoever designed and
     trained that model chose an output layer with exactly 384 numbers, as a tradeoff:</p>
 
-    <div class="example">
-      <div class="row"><span>Bigger vectors (768, 1024, 1536...)</span><b>more nuance, more memory, slower</b></div>
-      <div class="row"><span>Smaller vectors (384 or less)</span><b>faster, lighter, less precise</b></div>
+    <div class="table-wrap">
+      <table>
+        <tr><td>Bigger vectors (768, 1024, 1536...)</td><td><b>more nuance, more memory, slower</b></td></tr>
+        <tr><td>Smaller vectors (384 or less)</td><td><b>faster, lighter, less precise</b></td></tr>
+      </table>
     </div>
 
     <p><code>all-MiniLM-L6-v2</code> ("Mini" is in the name) was deliberately built small and fast,
@@ -842,10 +586,10 @@ print("first 5 numbers:", embedding[:5])</code></pre>
 
     <div class="callout warn">
       <strong>Hit while testing: <code>FileNotFoundError</code> for <code>docs/embeddings.txt</code>.</strong>
-      Same root cause as the Step 3 debugging detour — the terminal prompt showed
+      <p>Same root cause as the Step 3 debugging detour — the terminal prompt showed
       <code>...\Downloads\VSCode&gt;</code>, not <code>...\Downloads\VSCode\Gen AI Projects\mini-rag&gt;</code>.
       A relative path like <code>"docs/embeddings.txt"</code> only resolves correctly when the
-      terminal's current folder is <code>mini-rag</code> itself.
+      terminal's current folder is <code>mini-rag</code> itself.</p>
     </div>
 
     <pre><code>cd "Gen AI Projects\mini-rag"
@@ -862,11 +606,13 @@ python mini_rag.py</code></pre>
     <code>certifi</code> package).</p>
 
     <p><strong>Fix, step by step:</strong></p>
-    <div class="example">
-      <div class="row"><span>1. Found corporate root cert</span><b>Windows Cert store → AbbVie Global Root CA + Sub CA03</b></div>
-      <div class="row"><span>2. Exported both</span><b>PowerShell → .cer files</b></div>
-      <div class="row"><span>3. Converted to PEM</span><b>openssl x509 -inform DER</b></div>
-      <div class="row"><span>4. Appended to certifi's bundle</span><b>site-packages\certifi\cacert.pem (backup kept)</b></div>
+    <div class="table-wrap">
+      <table>
+        <tr><td>1. Found corporate root cert</td><td><b>Windows Cert store → AbbVie Global Root CA + Sub CA03</b></td></tr>
+        <tr><td>2. Exported both</td><td><b>PowerShell → .cer files</b></td></tr>
+        <tr><td>3. Converted to PEM</td><td><b>openssl x509 -inform DER</b></td></tr>
+        <tr><td>4. Appended to certifi's bundle</td><td><b>site-packages\certifi\cacert.pem (backup kept)</b></td></tr>
+      </table>
     </div>
 
     <p>This is a standing fix, not a one-time thing — every future HTTPS call from Python on this
@@ -882,22 +628,25 @@ python mini_rag.py</code></pre>
     <code>User-Agent</code> header, and Zscaler's policy here appears to treat headerless/script
     traffic differently from normal browsing, even for identical, public, harmless content.</p>
 
-    <div class="callout">
-      <strong>Decision point:</strong> spoofing a browser User-Agent gets past this, but it's a
+    <div class="callout info">
+      <strong>Decision point:</strong>
+      <p>spoofing a browser User-Agent gets past this, but it's a
       standing identity-spoofing change if set permanently — on a company-managed device, that's a
       call for the user to make, not something to quietly configure system-wide. Chose:
       <strong>session-only override</strong>, used once to complete this one download. Once the
       model is cached locally, no further network access is needed for it — so there's no ongoing
-      need for the override.
+      need for the override.</p>
     </div>
 
     <pre><code>export HF_HUB_USER_AGENT_ORIGIN="Mozilla/5.0 (Windows NT 10.0; Win64; x64) ..."
 python mini_rag.py</code></pre>
 
     <p><strong>Result:</strong></p>
-    <div class="example">
-      <div class="row"><span>length</span><b>384</b></div>
-      <div class="row"><span>first 5 numbers</span><b>[0.0131, -0.0552, -0.0531, -0.0332, 0.0309]</b></div>
+    <div class="table-wrap">
+      <table>
+        <tr><td>length</td><td><b>384</b></td></tr>
+        <tr><td>first 5 numbers</td><td><b>[0.0131, -0.0552, -0.0531, -0.0332, 0.0309]</b></td></tr>
+      </table>
     </div>
 
     <p>384 confirmed, matching the theory discussed above. Model is now cached at
@@ -937,10 +686,8 @@ python mini_rag.py</code></pre>
     after the one-time download.</p>
   </section>
 
-  <section class="card" id="step5">
-    <div class="card-head">
-      <span class="step-label">Step 5</span>
-    </div>
+  <section class="step" id="step5">
+    <div class="step-head"><span class="pill teal">Step 5</span></div>
     <h2>Embedding all chunks + a question, and comparing them</h2>
 
     <p><strong>The problem we're solving:</strong> right now we can turn one chunk into a vector.
@@ -991,9 +738,11 @@ question_embedding = model.encode(question)
 print(question_embedding.shape)</code></pre>
 
     <p><strong>Output:</strong></p>
-    <div class="example">
-      <div class="row"><span>chunk_embeddings.shape</span><b>(14, 384)</b></div>
-      <div class="row"><span>question_embedding.shape</span><b>(384,)</b></div>
+    <div class="table-wrap">
+      <table>
+        <tr><td>chunk_embeddings.shape</td><td><b>(14, 384)</b></td></tr>
+        <tr><td>question_embedding.shape</td><td><b>(384,)</b></td></tr>
+      </table>
     </div>
 
     <p><code>(14, 384)</code> is a 2D grid: 14 rows (one per chunk), 384 columns (one number per
@@ -1004,10 +753,8 @@ print(question_embedding.shape)</code></pre>
     <div class="status">All 14 chunks + the question embedded — shapes confirmed correct</div>
   </section>
 
-  <section class="card" id="step6">
-    <div class="card-head">
-      <span class="step-label">Step 6</span>
-    </div>
+  <section class="step" id="step6">
+    <div class="step-head"><span class="pill teal">Step 6</span></div>
     <h2>Computing similarity scores and finding the best match</h2>
 
     <p><strong>The concept:</strong> we have <code>chunk_embeddings</code> (shape
@@ -1041,11 +788,13 @@ print("best chunk text:", chunks[best_index])</code></pre>
 
     <p><strong>Result — it worked:</strong></p>
 
-    <div class="example">
-      <div class="row"><span>question</span><b>"What is cosine similarity?"</b></div>
-      <div class="row"><span>best chunk index</span><b>6</b></div>
-      <div class="row"><span>best score</span><b>0.7096 (next: 0.4595)</b></div>
-      <div class="row"><span>retrieved text</span><b>"Cosine similarity measures the angle between two vectors rather than their raw distance."</b></div>
+    <div class="table-wrap">
+      <table>
+        <tr><td>question</td><td><b>"What is cosine similarity?"</b></td></tr>
+        <tr><td>best chunk index</td><td><b>6</b></td></tr>
+        <tr><td>best score</td><td><b>0.7096 (next: 0.4595)</b></td></tr>
+        <tr><td>retrieved text</td><td><b>"Cosine similarity measures the angle between two vectors rather than their raw distance."</b></td></tr>
+      </table>
     </div>
 
     <p>Chunk 6 scored far ahead of every other chunk, and reading it confirms it's genuinely the
@@ -1075,10 +824,8 @@ print("best chunk text:", chunks[best_index])</code></pre>
     <div class="status">Retrieval working end-to-end — correct chunk found for a real question</div>
   </section>
 
-  <section class="card" id="step7">
-    <div class="card-head">
-      <span class="step-label">Step 7</span>
-    </div>
+  <section class="step" id="step7">
+    <div class="step-head"><span class="pill teal">Step 7</span></div>
     <h2>Generation — turning a retrieved chunk into a real answer</h2>
 
     <p><strong>The concept:</strong> <code>chunks[best_index]</code> is raw retrieved text, not an
@@ -1190,10 +937,12 @@ Call `/v1/models` to view available models for your key.</code></pre>
 
     <p><strong>Full pipeline result — first end-to-end run:</strong></p>
 
-    <div class="example">
-      <div class="row"><span>question</span><b>"What is cosine similarity?"</b></div>
-      <div class="row"><span>retrieved chunk</span><b>index 6, score 0.7096</b></div>
-      <div class="row"><span>Claude's answer</span><b>"Cosine similarity measures the angle between two vectors rather than their raw distance... it's a way to determine how similar two things are by comparing the direction they point in a mathematical space, regardless of their magnitude or length."</b></div>
+    <div class="table-wrap">
+      <table>
+        <tr><td>question</td><td><b>"What is cosine similarity?"</b></td></tr>
+        <tr><td>retrieved chunk</td><td><b>index 6, score 0.7096</b></td></tr>
+        <tr><td>Claude's answer</td><td><b>"Cosine similarity measures the angle between two vectors rather than their raw distance... it's a way to determine how similar two things are by comparing the direction they point in a mathematical space, regardless of their magnitude or length."</b></td></tr>
+      </table>
     </div>
 
     <p>This is the full RAG pipeline, built from scratch: raw text file → chunked → embedded →
@@ -1203,9 +952,9 @@ Call `/v1/models` to view available models for your key.</code></pre>
     <div class="status">End-to-end RAG pipeline working — first successful grounded answer</div>
   </section>
 
-  <footer class="page-footer">
+  <div class="page-footer">
     Updated as we go — every concept, task, real output, error, and fix from the session lives here.
-  </footer>
+  </div>
 </div>
 
 <script>
@@ -1215,31 +964,20 @@ Call `/v1/models` to view available models for your key.</code></pre>
   function onScroll() {
     let activeIdx = 0;
     const scrollPos = window.scrollY + 120;
-    sections.forEach((sec, i) => {
-      if (sec && sec.offsetTop <= scrollPos) activeIdx = i;
-    });
+    sections.forEach((sec, i) => { if (sec && sec.offsetTop <= scrollPos) activeIdx = i; });
     links.forEach((a, i) => a.classList.toggle('active', i === activeIdx));
   }
-
   window.addEventListener('scroll', onScroll, { passive: true });
   onScroll();
 
   const sidebar = document.getElementById('sidebar');
   const menuBtn = document.getElementById('menuBtn');
   const scrim = document.getElementById('scrim');
-
-  function closeDrawer() {
-    sidebar.classList.remove('open');
-    menuBtn.classList.remove('open');
-    scrim.classList.remove('show');
-  }
-
+  function closeDrawer() { sidebar.classList.remove('open'); scrim.classList.remove('show'); }
   function toggleDrawer() {
     const isOpen = sidebar.classList.toggle('open');
-    menuBtn.classList.toggle('open', isOpen);
     scrim.classList.toggle('show', isOpen);
   }
-
   menuBtn.addEventListener('click', toggleDrawer);
   scrim.addEventListener('click', closeDrawer);
   links.forEach(a => a.addEventListener('click', closeDrawer));
