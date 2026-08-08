@@ -404,15 +404,115 @@
     opacity: 0.85;
   }
 
+  /* ---------- Mobile top bar + drawer ---------- */
+
+  .mobile-bar {
+    display: none;
+    position: sticky;
+    top: 0;
+    z-index: 200;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    background: rgba(10, 12, 22, 0.75);
+    backdrop-filter: blur(18px) saturate(160%);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .mobile-bar .brand {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 0;
+  }
+
+  .mobile-bar .brand span { font-weight: 700; font-size: 0.95rem; }
+
+  .menu-btn {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    cursor: pointer;
+  }
+
+  .menu-btn span {
+    display: block;
+    width: 16px;
+    height: 2px;
+    margin: 0 auto;
+    background: var(--text);
+    border-radius: 2px;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+  }
+
+  .menu-btn.open span:nth-child(1) { transform: translateY(6px) rotate(45deg); }
+  .menu-btn.open span:nth-child(2) { opacity: 0; }
+  .menu-btn.open span:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
+
+  .scrim {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 150;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  .scrim.show { display: block; opacity: 1; }
+
   @media (max-width: 900px) {
-    .sidebar { display: none; }
-    .main { margin-left: 0; padding: 40px 24px 100px; }
+    .mobile-bar { display: flex; }
+
+    .sidebar {
+      transform: translateX(-100%);
+      transition: transform 0.25s ease;
+      width: min(80vw, 300px);
+      box-shadow: 20px 0 40px rgba(0, 0, 0, 0.4);
+    }
+
+    .sidebar.open { transform: translateX(0); }
+
+    .main { margin-left: 0; padding: 32px 20px 100px; }
+
+    header.hero h1 { font-size: 1.85rem; }
+    section.card { padding: 24px 20px; }
+    .example .row { flex-direction: column; align-items: flex-start; gap: 4px; }
+    .example .row b { text-align: left; }
+  }
+
+  @media (max-width: 480px) {
+    .main { padding: 24px 14px 90px; }
+    section.card { padding: 20px 16px; border-radius: 16px; }
+    header.hero h1 { font-size: 1.6rem; }
+    pre { padding: 14px 14px; }
+    pre code { font-size: 0.8rem; }
   }
 </style>
 </head>
 <body>
 
-<aside class="sidebar">
+<div class="mobile-bar">
+  <div class="brand">
+    <span class="dot" style="width:8px;height:8px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-2));box-shadow:0 0 12px rgba(125,211,252,0.7);"></span>
+    <span>mini-rag</span>
+  </div>
+  <button class="menu-btn" id="menuBtn" aria-label="Toggle navigation">
+    <span></span><span></span><span></span>
+  </button>
+</div>
+
+<div class="scrim" id="scrim"></div>
+
+<aside class="sidebar" id="sidebar">
   <div class="brand">
     <span class="dot"></span>
     <div>
@@ -1056,6 +1156,26 @@ Call `/v1/models` to view available models for your key.</code></pre>
 
   window.addEventListener('scroll', onScroll, { passive: true });
   onScroll();
+
+  const sidebar = document.getElementById('sidebar');
+  const menuBtn = document.getElementById('menuBtn');
+  const scrim = document.getElementById('scrim');
+
+  function closeDrawer() {
+    sidebar.classList.remove('open');
+    menuBtn.classList.remove('open');
+    scrim.classList.remove('show');
+  }
+
+  function toggleDrawer() {
+    const isOpen = sidebar.classList.toggle('open');
+    menuBtn.classList.toggle('open', isOpen);
+    scrim.classList.toggle('show', isOpen);
+  }
+
+  menuBtn.addEventListener('click', toggleDrawer);
+  scrim.addEventListener('click', closeDrawer);
+  links.forEach(a => a.addEventListener('click', closeDrawer));
 </script>
 
 </body>
