@@ -126,6 +126,13 @@ body::before {
 .brand span { font-family: var(--font-d); font-weight: 600; letter-spacing: -0.01em; font-size: 1rem; }
 .brand small { display: block; color: var(--text-faint); font-weight: 500; font-size: .72rem; margin-top: -2px; }
 
+.back-link {
+  display: flex; align-items: center; gap: 6px; margin: 2px 8px 18px;
+  color: var(--text-faint); text-decoration: none; font-size: .8rem; font-weight: 500;
+  transition: color .15s ease;
+}
+.back-link:hover { color: var(--teal); }
+
 .progress-track {
   margin: 0 8px 6px;
   height: 4px;
@@ -340,7 +347,7 @@ td b { color: var(--teal); font-weight: 650; }
 <body>
 
 <div class="mobile-bar">
-  <a class="brand" href="#" style="padding:0">
+  <a class="brand" href="../" style="padding:0" title="Back to Learning Logs">
     <span class="dot" style="width:22px;height:22px"></span>
     <span>mini-rag</span>
   </a>
@@ -350,10 +357,11 @@ td b { color: var(--teal); font-weight: 650; }
 <div class="scrim" id="scrim"></div>
 
 <aside class="sidebar" id="sidebar">
-  <a class="brand" href="#">
+  <a class="brand" href="../" title="Back to Learning Logs">
     <span class="dot"></span>
     <div><span>mini-rag</span><small>Learning Log</small></div>
   </a>
+  <a href="../" class="back-link">← All logs</a>
 
   <div class="progress-track"><div class="progress-fill"></div></div>
   <div class="progress-label">7 / 7 steps logged</div>
