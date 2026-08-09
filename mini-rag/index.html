@@ -364,7 +364,7 @@ td b { color: var(--teal); font-weight: 650; }
   <a href="../" class="back-link">← All logs</a>
 
   <div class="progress-track"><div class="progress-fill"></div></div>
-  <div class="progress-label">8 / 8 steps logged</div>
+  <div class="progress-label">9 / 9 steps logged</div>
 
   <nav class="navlist" id="navlist">
     <a href="#step1"><span class="n">01</span>Chunking — the idea</a>
@@ -375,6 +375,7 @@ td b { color: var(--teal); font-weight: 650; }
     <a href="#step6"><span class="n">06</span>Best match</a>
     <a href="#step7"><span class="n">07</span>Generation</a>
     <a href="#step8"><span class="n">08</span>Cross-doc retrieval</a>
+    <a href="#step9"><span class="n">09</span>Top-3 retrieval</a>
   </nav>
 
   <div class="sidebar-footer">
@@ -388,7 +389,7 @@ td b { color: var(--teal); font-weight: 650; }
   <p class="lead">A step-by-step backup of the RAG project you're building by hand — concepts, code, real output, and the debugging detours along the way.</p>
 
   <div class="grid">
-    <div class="card stat"><div class="n">8</div><div class="l">Steps done</div></div>
+    <div class="card stat"><div class="n">9</div><div class="l">Steps done</div></div>
     <div class="card stat"><div class="n">44</div><div class="l">Chunks searched</div></div>
     <div class="card stat"><div class="n">3</div><div class="l">Docs indexed</div></div>
   </div>
@@ -1058,6 +1059,55 @@ chunks = embed_chunks + rag_chunks + llm_chunks</code></pre>
     </div>
 
     <div class="status">Cross-document retrieval confirmed — correct doc found among 3, out of 44 chunks</div>
+  </section>
+
+  <section class="step" id="step9">
+    <div class="step-head"><span class="pill teal">Step 9</span></div>
+    <h2>Top-3 retrieval — the answer can span more than one chunk</h2>
+
+    <p><strong>The problem:</strong> <code>.argmax()</code> only ever returns the single
+    best-scoring chunk. Often the real answer spans a chunk boundary, or the top chunk alone is
+    incomplete — so instead of picking 1 winner, we want the top 3 scores at once.</p>
+
+    <p><strong>The concept:</strong> tensors have a method called <code>.topk(k)</code> — the
+    multi-result cousin of <code>argmax</code>. It returns <em>two</em> lists at once: the top
+    <code>k</code> scores themselves, sorted highest to lowest, and the chunk index each score
+    belongs to.</p>
+
+    <pre><code>top_scores, top_indices = scores[0].topk(3)</code></pre>
+
+    <p><code>zip(top_scores, top_indices)</code> pairs the two lists up by position so each score
+    and its matching chunk index can be printed together in one loop — otherwise they're two
+    separate lists that only line up by coincidence of order.</p>
+
+    <pre><code># pick the top 3 matches instead of just 1 — the answer may span chunks
+# topk returns two lists: the scores themselves, and which chunk each one belongs to
+top_scores, top_indices = scores[0].topk(3)
+for score, idx in zip(top_scores, top_indices):
+    # zip pairs each score with its matching index so they print together
+    print(f"score={score:.4f} chunk={idx} text={chunks[idx][:100]}")</code></pre>
+
+    <p><strong>Result</strong> — same question as Step 8's second test, "Why does RAG reduce
+    hallucination?":</p>
+
+    <div class="table-wrap">
+      <table>
+        <tr><td>#1 · score 0.4914 · chunk 18</td><td><b>"...those top chunks are inserted into a prompt... The main benefit of RAG is that it reduces hallucination..."</b></td></tr>
+        <tr><td>#2 · score 0.3786 · chunk 27</td><td><b>"...evaluating a RAG system is its own challenge. Unlike a classification model..."</b></td></tr>
+        <tr><td>#3 · score 0.3693 · chunk 19</td><td><b>"...states something false or made up. If the model is told to answer using only the provided context..."</b></td></tr>
+      </table>
+    </div>
+
+    <p><strong>Judging relevance, honestly:</strong> chunk 18 is the same top match as before —
+    directly on-topic. Chunk 19 is the chunk immediately <em>after</em> 18 in the source document
+    (a direct consequence of chunk overlap from Step 1/2) — it continues the exact same
+    hallucination explanation that got cut off, so retrieving both means Claude would see the full
+    idea instead of a half-sentence. Chunk 27, though — "evaluating a RAG system" — is topically
+    adjacent (still about RAG) but doesn't actually answer <em>why</em> RAG reduces hallucination.
+    That's the real tradeoff of top-k: k=1 risks missing a split answer, k=3 risks pulling in a
+    weaker, off-target chunk just to fill the third slot.</p>
+
+    <div class="status">Top-3 retrieval working — 2 of 3 chunks genuinely relevant, 1 topically adjacent but off-target</div>
   </section>
 
   <div class="page-footer">
