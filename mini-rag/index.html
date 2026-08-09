@@ -364,7 +364,7 @@ td b { color: var(--teal); font-weight: 650; }
   <a href="../" class="back-link">← All logs</a>
 
   <div class="progress-track"><div class="progress-fill"></div></div>
-  <div class="progress-label">7 / 7 steps logged</div>
+  <div class="progress-label">8 / 8 steps logged</div>
 
   <nav class="navlist" id="navlist">
     <a href="#step1"><span class="n">01</span>Chunking — the idea</a>
@@ -374,6 +374,7 @@ td b { color: var(--teal); font-weight: 650; }
     <a href="#step5"><span class="n">05</span>Similarity theory</a>
     <a href="#step6"><span class="n">06</span>Best match</a>
     <a href="#step7"><span class="n">07</span>Generation</a>
+    <a href="#step8"><span class="n">08</span>Cross-doc retrieval</a>
   </nav>
 
   <div class="sidebar-footer">
@@ -387,8 +388,8 @@ td b { color: var(--teal); font-weight: 650; }
   <p class="lead">A step-by-step backup of the RAG project you're building by hand — concepts, code, real output, and the debugging detours along the way.</p>
 
   <div class="grid">
-    <div class="card stat"><div class="n">7</div><div class="l">Steps done</div></div>
-    <div class="card stat"><div class="n">384</div><div class="l">Vector dims</div></div>
+    <div class="card stat"><div class="n">8</div><div class="l">Steps done</div></div>
+    <div class="card stat"><div class="n">44</div><div class="l">Chunks searched</div></div>
     <div class="card stat"><div class="n">3</div><div class="l">Docs indexed</div></div>
   </div>
 
@@ -973,6 +974,73 @@ Call `/v1/models` to view available models for your key.</code></pre>
     readable answer grounded in that retrieved text, not from its own general knowledge.</p>
 
     <div class="status">End-to-end RAG pipeline working — first successful grounded answer</div>
+  </section>
+
+  <section class="step" id="step8">
+    <div class="step-head"><span class="pill teal">Step 8</span></div>
+    <h2>Cross-document retrieval — searching across all 3 docs at once</h2>
+
+    <p><strong>The problem:</strong> until now, the script only loaded and chunked
+    <code>embeddings.txt</code>. Real retrieval needs to search across a whole knowledge base, not
+    just one file — so the next step is loading all 3 docs (<code>embeddings.txt</code>,
+    <code>rag.txt</code>, <code>llm_basics.txt</code>), chunking each one, and combining every
+    chunk into a single list before embedding anything.</p>
+
+    <p><strong>The logic:</strong> chunk each file separately (so each keeps its own text and
+    chunk boundaries), then combine the three chunk lists with <code>+</code> — plain Python list
+    concatenation, no new concept needed. Once combined, the rest of the pipeline (embed, compare,
+    retrieve) doesn't know or care which original file a chunk came from — it just sees one big
+    pool of chunks to search.</p>
+
+    <pre><code>with open("docs/embeddings.txt", "r", encoding="utf-8") as f:
+    embed_text = f.read()
+with open("docs/rag.txt", "r", encoding="utf-8") as f:
+    rag_text = f.read()
+with open("docs/llm_basics.txt", "r", encoding="utf-8") as f:
+    llm_text = f.read()
+
+embed_chunks = chunk_text(embed_text, 300, 50)
+rag_chunks = chunk_text(rag_text, 300, 50)
+llm_chunks = chunk_text(llm_text, 300, 50)
+
+chunks = embed_chunks + rag_chunks + llm_chunks</code></pre>
+
+    <p>Everything after this line — <code>model.encode(chunks)</code>, <code>model.similarity(...)</code>,
+    <code>.argmax()</code> — is unchanged from Step 5/6. That's the point: the retrieval logic
+    doesn't need to know how many documents it's searching, only that it has a list of chunks.</p>
+
+    <p><strong>Test question, deliberately chosen from a different doc:</strong> Step 6 used
+    "What is cosine similarity?", which only <code>embeddings.txt</code> could answer. To prove
+    cross-document search actually works (not just "it still finds the same old chunk"), this test
+    used a question that <code>llm_basics.txt</code> answers instead:</p>
+
+    <pre><code>question = "What is a context window?"</code></pre>
+
+    <p><strong>Result:</strong></p>
+    <div class="table-wrap">
+      <table>
+        <tr><td>total chunks now</td><td><b>44</b> (up from 14 — confirms all 3 files combined correctly)</td></tr>
+        <tr><td>question</td><td><b>"What is a context window?"</b></td></tr>
+        <tr><td>best chunk index</td><td><b>38</b></td></tr>
+        <tr><td>retrieved text</td><td><b>"...Context window is another important concept. It refers to the maximum numb[er of tokens...]"</b></td></tr>
+      </table>
+    </div>
+
+    <p>Chunk 38 is genuinely from <code>llm_basics.txt</code>, not <code>embeddings.txt</code> —
+    proof the search is scanning the full combined pool and correctly picking the right document
+    for the question, not just defaulting to whichever file happened to load first.</p>
+
+    <div class="callout win">
+      <strong>Code cleanup, on your own initiative:</strong>
+      <p>kept the original single-doc version as a separate reference file
+      (<code>mini_rag copy.py</code>) rather than overwriting it, and renamed variables in the new
+      multi-doc version to be self-descriptive — <code>embed_chunks</code> / <code>rag_chunks</code>
+      / <code>llm_chunks</code> instead of generic names, and <code>chunk_combined</code> instead of
+      reusing <code>chunk_embeddings</code>. Both files now have short comments marking each stage
+      (load → chunk → embed → compare → retrieve → generate).</p>
+    </div>
+
+    <div class="status">Cross-document retrieval confirmed — correct doc found among 3, out of 44 chunks</div>
   </section>
 
   <div class="page-footer">
