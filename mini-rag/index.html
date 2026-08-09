@@ -364,7 +364,7 @@ td b { color: var(--teal); font-weight: 650; }
   <a href="../" class="back-link">← All logs</a>
 
   <div class="progress-track"><div class="progress-fill"></div></div>
-  <div class="progress-label">11 / 11 steps logged</div>
+  <div class="progress-label">12 / 12 steps logged</div>
 
   <nav class="navlist" id="navlist">
     <a href="#step1"><span class="n">01</span>Chunking — the idea</a>
@@ -378,6 +378,7 @@ td b { color: var(--teal); font-weight: 650; }
     <a href="#step9"><span class="n">09</span>Top-3 retrieval</a>
     <a href="#step10"><span class="n">10</span>Question loop</a>
     <a href="#step11"><span class="n">11</span>Grounding vs knowledge</a>
+    <a href="#step12"><span class="n">12</span>Cleanup into functions</a>
   </nav>
 
   <div class="sidebar-footer">
@@ -391,7 +392,7 @@ td b { color: var(--teal); font-weight: 650; }
   <p class="lead">A step-by-step backup of the RAG project you're building by hand — concepts, code, real output, and the debugging detours along the way.</p>
 
   <div class="grid">
-    <div class="card stat"><div class="n">11</div><div class="l">Steps done</div></div>
+    <div class="card stat"><div class="n">12</div><div class="l">Steps done</div></div>
     <div class="card stat"><div class="n">44</div><div class="l">Chunks searched</div></div>
     <div class="card stat"><div class="n">3</div><div class="l">Docs indexed</div></div>
   </div>
@@ -1224,6 +1225,77 @@ print(response.content[0].text)</code></pre>
     </div>
 
     <div class="status">Generation restored inside the loop — grounding behavior confirmed and understood, not just observed</div>
+  </section>
+
+  <section class="step" id="step12">
+    <div class="step-head"><span class="pill amber">Step 12</span></div>
+    <h2>Cleaning up — organizing into functions without deleting any history</h2>
+
+    <p><strong>The ask, precisely:</strong> organize the script into functions — but keep every
+    earlier commented-out version (single-doc/single-chunk, single-doc/top-3, first generation
+    call) fully intact, the same way separate cells in a Jupyter notebook preserve earlier steps.
+    Nothing gets deleted; old code only moves, and only because it was explicitly agreed first.</p>
+
+    <p><strong>What changed:</strong></p>
+    <ul>
+      <li>Constants pulled to the top of the file — <code>DOC_PATHS</code>, <code>CHUNK_SIZE</code>,
+      <code>OVERLAP</code>, <code>TOP_K</code>, <code>MODEL_NAME</code>, <code>SYSTEM_PROMPT</code> —
+      same values as before, just named instead of scattered as literals through the code.</li>
+      <li>Four functions, each one exactly the logic already written, just wrapped with a name:
+      <code>load_and_chunk_docs</code> (read + chunk all 3 docs, combine into one list),
+      <code>retrieve_top_k</code> (embed the question, return its top-k chunks — pure retrieval,
+      no Claude), <code>generate_answer</code> (join chunks, call Claude, return the text),
+      <code>main</code> (one-time setup, then the question loop).</li>
+      <li>The 3 historical commented blocks moved to a clearly labeled "History" section at the
+      bottom of the file — preserved <em>verbatim</em>, not summarized or rewritten, just relocated
+      so the active code reads cleanly top-to-bottom above them.</li>
+    </ul>
+
+    <pre><code>def load_and_chunk_docs(paths, chunk_size, overlap):
+    """Read each doc separately, chunk it, then combine into one list
+    so retrieval below searches across every doc at once."""
+    all_chunks = []
+    for path in paths:
+        with open(path, "r", encoding="utf-8") as f:
+            text = f.read()
+        all_chunks += chunk_text(text, chunk_size, overlap)
+    return all_chunks
+
+
+def retrieve_top_k(model, question, chunks, chunk_embeddings, k):
+    """Embed the question and return its top-k most similar chunks."""
+    question_embedding = model.encode(question)
+    scores = model.similarity(question_embedding, chunk_embeddings)
+    top_scores, top_indices = scores[0].topk(k)
+    return top_scores, top_indices
+
+
+def generate_answer(client, question, chunks, top_indices):
+    """Join the top-k chunks, ask Claude for a grounded answer."""
+    context = "\n\n---\n\n".join(chunks[idx] for idx in top_indices)
+    prompt = f"Context:\n{context}\n\nQuestion: {question}"
+    response = client.messages.create(
+        model=MODEL_NAME,
+        max_tokens=300,
+        system=SYSTEM_PROMPT,
+        messages=[{"role": "user", "content": prompt}]
+    )
+    return response.content[0].text</code></pre>
+
+    <p><strong>Verification, not assumption:</strong> re-ran the refactored script with the same
+    question as Step 11 ("What is RAG?") before calling the cleanup done.</p>
+
+    <div class="table-wrap">
+      <table>
+        <tr><td>scores / chunks retrieved</td><td><b>identical: 0.5876/18, 0.5450/27, 0.5271/19</b></td></tr>
+        <tr><td>Claude's answer</td><td><b>same quality, same grounding behavior</b></td></tr>
+      </table>
+    </div>
+
+    <p>Confirms the refactor changed <em>organization only</em> — the logic itself is byte-for-byte
+    the same code, just given names and structure.</p>
+
+    <div class="status">Script organized into 4 functions + main() — all history preserved, behavior verified unchanged</div>
   </section>
 
   <div class="page-footer">
