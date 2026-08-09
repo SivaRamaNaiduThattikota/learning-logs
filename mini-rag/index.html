@@ -1030,6 +1030,23 @@ chunks = embed_chunks + rag_chunks + llm_chunks</code></pre>
     proof the search is scanning the full combined pool and correctly picking the right document
     for the question, not just defaulting to whichever file happened to load first.</p>
 
+    <p><strong>Second test, on a third doc:</strong> to rule out a lucky first result, ran a
+    question that only <code>rag.txt</code> answers:</p>
+
+    <pre><code>question = "Why does RAG reduce hallucination?"</code></pre>
+
+    <div class="table-wrap">
+      <table>
+        <tr><td>best chunk index</td><td><b>18</b></td></tr>
+        <tr><td>retrieved text</td><td><b>"...The main benefit of RAG is that it reduces hallucination, which is when a model confidently states something false or made up..."</b></td></tr>
+      </table>
+    </div>
+
+    <p>Chunk 18 is from <code>rag.txt</code>, the correct third document. Two different questions
+    now correctly resolve to two different source documents (<code>llm_basics.txt</code> and
+    <code>rag.txt</code>) out of the same 44-chunk pool — confirms retrieval generalizes across the
+    whole knowledge base rather than being a one-off correct guess.</p>
+
     <div class="callout win">
       <strong>Code cleanup, on your own initiative:</strong>
       <p>kept the original single-doc version as a separate reference file
