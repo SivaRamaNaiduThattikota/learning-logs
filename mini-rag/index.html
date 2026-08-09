@@ -364,7 +364,7 @@ td b { color: var(--teal); font-weight: 650; }
   <a href="../" class="back-link">← All logs</a>
 
   <div class="progress-track"><div class="progress-fill"></div></div>
-  <div class="progress-label">9 / 9 steps logged</div>
+  <div class="progress-label">11 / 11 steps logged</div>
 
   <nav class="navlist" id="navlist">
     <a href="#step1"><span class="n">01</span>Chunking — the idea</a>
@@ -376,6 +376,8 @@ td b { color: var(--teal); font-weight: 650; }
     <a href="#step7"><span class="n">07</span>Generation</a>
     <a href="#step8"><span class="n">08</span>Cross-doc retrieval</a>
     <a href="#step9"><span class="n">09</span>Top-3 retrieval</a>
+    <a href="#step10"><span class="n">10</span>Question loop</a>
+    <a href="#step11"><span class="n">11</span>Grounding vs knowledge</a>
   </nav>
 
   <div class="sidebar-footer">
@@ -389,7 +391,7 @@ td b { color: var(--teal); font-weight: 650; }
   <p class="lead">A step-by-step backup of the RAG project you're building by hand — concepts, code, real output, and the debugging detours along the way.</p>
 
   <div class="grid">
-    <div class="card stat"><div class="n">9</div><div class="l">Steps done</div></div>
+    <div class="card stat"><div class="n">11</div><div class="l">Steps done</div></div>
     <div class="card stat"><div class="n">44</div><div class="l">Chunks searched</div></div>
     <div class="card stat"><div class="n">3</div><div class="l">Docs indexed</div></div>
   </div>
@@ -1108,6 +1110,120 @@ for score, idx in zip(top_scores, top_indices):
     weaker, off-target chunk just to fill the third slot.</p>
 
     <div class="status">Top-3 retrieval working — 2 of 3 chunks genuinely relevant, 1 topically adjacent but off-target</div>
+  </section>
+
+  <section class="step" id="step10">
+    <div class="step-head"><span class="pill teal">Step 10</span></div>
+    <h2>A question loop — ask repeatedly without re-running the script</h2>
+
+    <p><strong>The problem:</strong> every time you want to ask a different question, editing
+    <code>question = "..."</code> and re-running the whole script means reloading the model and
+    re-embedding all 44 chunks each time — even though those never change between questions.</p>
+
+    <p><strong>The concept — separate what changes from what doesn't.</strong> The model and the
+    chunk embeddings only need to be computed <em>once</em>. Only the question changes each round.
+    So the loop sits after all the one-time setup (loading docs, chunking, loading the model,
+    embedding all chunks) and wraps only the parts that depend on the question.</p>
+
+    <p><code>input(...)</code> pauses the script and waits for you to type something and press
+    Enter, returning what you typed as a string. <code>break</code> exits the loop immediately —
+    used here so typing "quit" ends the session cleanly.</p>
+
+    <pre><code># one-time setup, outside the loop
+model = SentenceTransformer("all-MiniLM-L6-v2")
+client = Anthropic()  # reused every question in the loop below
+chunk_combined = model.encode(chunks)
+
+while True:
+    # ask repeatedly without re-loading the model or re-embedding the docs each time
+    question = input("\nAsk a question (or type 'quit' to stop): ")
+    if question.lower() == "quit":
+        break
+    question_embedding = model.encode(question)
+    scores = model.similarity(question_embedding, chunk_combined)
+
+    top_scores, top_indices = scores[0].topk(3)
+    for score, idx in zip(top_scores, top_indices):
+        print(f"score={score:.4f} chunk={idx} text={chunks[idx][:100]}")</code></pre>
+
+    <p><strong>Result:</strong> ran 3 different questions in a single script execution — no
+    restart needed between them, model and embeddings loaded exactly once.</p>
+
+    <div class="callout win">
+      <strong>Kept, on purpose, not a leftover:</strong>
+      <p>the earlier single-question code (from Steps 5–9) stays in the file, commented out with
+      triple quotes, rather than deleted. Reason given: "when later if I refer I want to know and
+      read from beginning what we done" — the same idea as separate cells in a Jupyter notebook,
+      just done with comments in a plain <code>.py</code> file. Nothing in the file gets reordered
+      or removed without it being asked for explicitly.</p>
+    </div>
+
+    <div class="status">Question loop working — 3 questions answered in one run, no restarts</div>
+  </section>
+
+  <section class="step" id="step11">
+    <div class="step-head"><span class="pill amber">Step 11</span></div>
+    <h2>Adding generation back — and why Claude refused a question it clearly knows the answer to</h2>
+
+    <p><strong>The concept:</strong> the loop above only prints raw retrieved chunks — that's
+    retrieval, not generation. No Claude call happens there at all. To get an actual written
+    answer, the top-3 chunks need to be joined into one context string and sent to Claude, same
+    pattern as Step 7 but with 3 chunks instead of 1:</p>
+
+    <pre><code># generation — join the top 3 chunks with a separator so Claude can tell them apart
+context = "\n\n---\n\n".join(chunks[idx] for idx in top_indices)
+prompt = f"Context:\n{context}\n\nQuestion: {question}"
+
+response = client.messages.create(
+    model="claude-sonnet-4-5-20250929",
+    max_tokens=300,
+    system="You are a helpful assistant. Only answer using the provided context. If the answer isn't in the context, say so clearly.",
+    messages=[{"role": "user", "content": prompt}]
+)
+print(response.content[0].text)</code></pre>
+
+    <p><code>"\n\n---\n\n".join(...)</code> glues the 3 chunk strings together with a visible
+    separator between them, so the final prompt looks like
+    <code>chunk1\n\n---\n\nchunk2\n\n---\n\nchunk3</code> — Claude can see there are 3 distinct
+    pieces of context rather than one run-on block.</p>
+
+    <p><code>client = Anthropic()</code> is created once, outside the loop, right next to where
+    the embedding model is loaded — same category of one-time setup cost, not something to
+    recreate on every question.</p>
+
+    <p><strong>Result — "What is RAG?":</strong> Claude gave a full, well-organized answer
+    (retrieval → generation, hallucination reduction, updatable knowledge) grounded entirely in the
+    3 retrieved chunks.</p>
+
+    <p><strong>Result — "What is Quantum physics?":</strong> Claude refused —
+    <em>"I cannot answer that question based on the provided context..."</em> — even though
+    quantum physics is common knowledge Claude clearly has from training.</p>
+
+    <p><strong>The question raised, and it's a genuinely good one:</strong> if Claude knows the
+    answer, why did it refuse instead of just answering normally?</p>
+
+    <div class="callout info">
+      <strong>Answer:</strong>
+      <p>because of the <code>system</code> prompt: <em>"Only answer using the provided context.
+      If the answer isn't in the context, say so clearly."</em> That's a deliberate constraint —
+      it tells Claude "don't use what you know, only use what's in this prompt." Claude has the
+      knowledge, but it <em>obeyed the instruction</em> to refuse rather than answer from outside
+      the given context. This is Claude following instructions correctly, not a limitation of the
+      model or the pipeline.</p>
+    </div>
+
+    <p><strong>The bigger point, confirmed:</strong> RAG doesn't take away an LLM's own knowledge —
+    it <em>adds</em> extra info (the docs), and the system prompt decides how that extra info gets
+    used. Two real options exist, and real systems pick based on the use case:</p>
+
+    <div class="table-wrap">
+      <table>
+        <tr><td>Strict grounding (what was built here)</td><td><b>"Only answer from this context" → refuses when the answer isn't there. Right for cases needing factual accuracy tied to specific docs — e.g. a company policy bot that must never invent answers beyond the actual policy text.</b></td></tr>
+        <tr><td>Context-preferred, knowledge-allowed</td><td><b>"Use the context if relevant, otherwise answer from what you know" → more flexible, closer to a general assistant that also has extra docs on hand.</b></td></tr>
+      </table>
+    </div>
+
+    <div class="status">Generation restored inside the loop — grounding behavior confirmed and understood, not just observed</div>
   </section>
 
   <div class="page-footer">
