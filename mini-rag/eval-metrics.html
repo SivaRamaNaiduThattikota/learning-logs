@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAG Evaluation Metrics — Learning Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0b0f14;
+  --panel: rgba(255, 255, 255, 0.045);
+  --panel-strong: rgba(255, 255, 255, 0.07);
+  --border: rgba(255, 255, 255, 0.10);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --text: #e8eef5;
+  --text-dim: #a4b2c2;
+  --text-faint: #6d7d8f;
+
+  --teal: #2dd4bf;
+  --teal-deep: #0e7c73;
+  --amber: #f6b545;
+  --violet: #8b8cf0;
+  --rose: #f472b6;
+  --sky: #56b6ff;
+
+  --shadow: 0 20px 60px -20px rgba(0, 0, 0, 0.7);
+  --radius: 18px;
+  --radius-sm: 12px;
+  --sidebar-w: 260px;
+
+  --font-d: "Fraunces", Georgia, serif;
+  --font-b: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --mono: "JetBrains Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  font-family: var(--font-b);
+  color: var(--text);
+  background: var(--bg);
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: -25%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(38% 46% at 16% 14%, rgba(45, 212, 191, 0.16), transparent 62%),
+    radial-gradient(36% 42% at 84% 10%, rgba(246, 181, 69, 0.14), transparent 62%),
+    radial-gradient(44% 50% at 82% 84%, rgba(244, 114, 182, 0.13), transparent 62%),
+    radial-gradient(40% 46% at 12% 88%, rgba(139, 140, 240, 0.14), transparent 62%),
+    var(--bg);
+  filter: blur(20px);
+  animation: drift 26s ease-in-out infinite alternate;
+}
+@keyframes drift {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  50%  { transform: translate3d(2%, -2%, 0) scale(1.06); }
+  100% { transform: translate3d(-2%, 2%, 0) scale(1.03); }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+/* ---------- Sidebar ---------- */
+
+.sidebar {
+  position: fixed; top: 0; left: 0; width: var(--sidebar-w); height: 100vh;
+  padding: 26px 16px; overflow-y: auto;
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  backdrop-filter: blur(20px) saturate(160%); -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border-right: 1px solid var(--border); z-index: 100;
+  transition: transform .28s cubic-bezier(.4,1.2,.5,1);
+}
+
+.brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px 6px; text-decoration: none; color: var(--text); }
+.brand .dot { width: 26px; height: 26px; border-radius: 8px; background: linear-gradient(135deg, var(--teal), var(--amber)); box-shadow: 0 0 18px rgba(45,212,191,.5); flex: none; }
+.brand span { font-family: var(--font-d); font-weight: 600; letter-spacing: -0.01em; font-size: 1rem; }
+.brand small { display: block; color: var(--text-faint); font-weight: 500; font-size: .72rem; margin-top: -2px; }
+
+.back-link {
+  display: flex; align-items: center; gap: 6px; margin: 2px 8px 20px;
+  color: var(--text-faint); text-decoration: none; font-size: .8rem; font-weight: 500;
+  transition: color .15s ease;
+}
+.back-link:hover { color: var(--teal); }
+
+.progress-track { margin: 0 8px 6px; height: 4px; border-radius: 4px; background: var(--panel); overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--teal), var(--amber)); width: 100%; }
+.progress-label { margin: 0 8px 18px; font-size: .72rem; color: var(--text-faint); }
+
+.navlist { display: flex; flex-direction: column; gap: 2px; }
+.navlist a {
+  display: flex; align-items: baseline; gap: 10px; padding: 9px 12px; border-radius: 9px;
+  color: var(--text-dim); text-decoration: none; font-size: .87rem; font-weight: 500; transition: .18s;
+}
+.navlist a .n { font-family: var(--mono); font-size: .72rem; color: var(--text-faint); flex-shrink: 0; width: 16px; }
+.navlist a:hover { color: var(--text); background: var(--panel); }
+.navlist a.active { color: var(--text); background: var(--panel-strong); box-shadow: inset 0 0 0 1px var(--border), inset 2px 0 0 var(--teal); }
+.navlist a.active .n { color: var(--teal); }
+
+.sidebar-footer { margin-top: 22px; padding: 14px 10px 4px; border-top: 1px solid var(--border); color: var(--text-faint); font-size: .72rem; line-height: 1.5; }
+
+/* ---------- Mobile bar ---------- */
+
+.mobile-bar {
+  display: none; position: sticky; top: 0; z-index: 200; align-items: center; justify-content: space-between;
+  padding: 12px 16px; background: color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter: blur(18px) saturate(160%); -webkit-backdrop-filter: blur(18px) saturate(160%);
+  border-bottom: 1px solid var(--border);
+}
+.icon-btn {
+  border: 1px solid var(--border); background: var(--panel); color: var(--text);
+  width: 38px; height: 38px; border-radius: 10px; cursor: pointer; font-size: 1rem; flex: none;
+  display: inline-flex; align-items: center; justify-content: center; transition: .18s;
+}
+.icon-btn:hover { background: var(--panel-strong); }
+.scrim { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 150; }
+.scrim.show { display: block; }
+
+@media (max-width: 900px) {
+  .mobile-bar { display: flex; }
+  .sidebar { transform: translateX(-100%); width: min(82vw, 300px); }
+  .sidebar.open { transform: translateX(0); }
+  .main { margin-left: 0 !important; padding: 28px 18px 100px !important; }
+}
+
+/* ---------- Main content ---------- */
+
+.main { margin-left: var(--sidebar-w); max-width: 780px; padding: 60px 44px 140px; }
+
+.eyebrow {
+  display: inline-flex; align-items: center; gap: 8px; font-size: .78rem; font-weight: 600;
+  letter-spacing: .12em; text-transform: uppercase; color: var(--teal);
+  padding: 6px 12px; border: 1px solid var(--border); border-radius: 999px; background: var(--panel);
+}
+
+h1 { font-family: var(--font-d); font-size: clamp(2rem, 4.4vw, 2.6rem); line-height: 1.1; letter-spacing: -0.02em; margin: 18px 0 12px; font-weight: 600; }
+h1 .grad { background: linear-gradient(120deg, var(--teal), var(--amber) 65%, var(--rose)); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; }
+h2 { font-family: var(--font-d); font-size: 1.5rem; letter-spacing: -0.01em; margin: 0 0 16px; font-weight: 600; color: var(--text); }
+h3 { font-family: var(--font-d); font-size: 1.12rem; letter-spacing: -0.005em; margin: 0 0 10px; font-weight: 600; color: var(--text); }
+
+.lead { font-size: 1.02rem; color: var(--text-dim); max-width: 600px; margin: 0 0 26px; }
+
+.grid { display: grid; gap: 14px; grid-template-columns: repeat(3, 1fr); max-width: 600px; margin-bottom: 44px; }
+@media (max-width: 480px) { .grid { grid-template-columns: 1fr 1fr; } }
+
+.card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: var(--shadow); transition: .22s; }
+.card:hover { border-color: var(--border-strong); transform: translateY(-3px); }
+.stat { text-align: left; padding: 16px 18px; }
+.stat .n { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em; background: linear-gradient(120deg, var(--teal), var(--amber)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.stat .l { color: var(--text-dim); font-size: .8rem; margin-top: 2px; }
+
+section.step {
+  position: relative; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 30px 32px; margin-bottom: 26px; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  box-shadow: var(--shadow); transition: .22s; scroll-margin-top: 30px;
+}
+section.step:hover { border-color: var(--border-strong); }
+section.step::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  border-radius: var(--radius) 0 0 var(--radius);
+  background: linear-gradient(180deg, var(--teal), var(--amber), var(--rose));
+}
+
+.step-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.pill { display: inline-block; font-size: .74rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 4px 11px; border-radius: 999px; border: 1px solid var(--border); background: var(--panel); color: var(--text-dim); }
+.pill.teal { color: var(--teal); border-color: rgba(45,212,191,.35); background: rgba(45,212,191,.1); }
+.pill.amber { color: var(--amber); border-color: rgba(246,181,69,.35); background: rgba(246,181,69,.1); }
+.pill.violet { color: var(--violet); border-color: rgba(139,140,240,.35); background: rgba(139,140,240,.1); }
+
+.step p { color: var(--text-dim); margin: 0 0 14px; }
+.step p:last-of-type { margin-bottom: 0; }
+.step > *:last-child { margin-bottom: 0 !important; }
+.step strong { color: var(--text); font-weight: 650; }
+.step em { color: var(--text); font-style: normal; font-weight: 650; }
+.step ul, .step ol { color: var(--text-dim); margin: 0 0 14px; padding-left: 22px; }
+.step li { margin-bottom: 6px; }
+.step li:last-child { margin-bottom: 0; }
+
+code { font-family: var(--mono); font-size: .86em; background: var(--panel-strong); padding: 2px 6px; border-radius: 6px; border: 1px solid var(--border); color: var(--text); white-space: nowrap; }
+pre { background: #05080c; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 16px 18px; overflow-x: auto; margin: 16px 0; }
+pre code { background: none; border: none; padding: 0; color: #cbd7e3; font-size: .85rem; line-height: 1.6; white-space: pre; display: block; }
+
+.callout { border: 1px solid var(--border); border-left: 3px solid var(--amber); background: var(--panel); border-radius: var(--radius-sm); padding: 16px 18px; margin: 16px 0; font-size: .93rem; }
+.callout.info { border-left-color: var(--sky); }
+.callout.win { border-left-color: var(--teal); }
+.callout.warn { border-left-color: var(--rose); }
+.callout p { margin: 6px 0 0; color: var(--text-dim); }
+.callout p:first-child { margin-top: 0; }
+
+.table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--panel); margin: 16px 0; }
+table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+th, td { text-align: left; padding: 10px 16px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { color: var(--text); font-weight: 700; font-size: .78rem; letter-spacing: .04em; text-transform: uppercase; background: var(--panel-strong); }
+td { color: var(--text-dim); }
+tr:last-child td { border-bottom: none; }
+td b { color: var(--teal); font-weight: 650; }
+
+.status { display: flex; align-items: center; gap: 9px; font-size: .87rem; color: var(--teal); margin-top: 18px; padding-top: 16px; border-top: 1px dashed var(--border); }
+.status::before { content: '✓'; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; background: rgba(45, 212, 191, 0.15); border-radius: 50%; font-size: .68rem; flex-shrink: 0; }
+.status.pending { color: var(--text-faint); }
+.status.pending::before { content: '…'; background: var(--panel-strong); }
+
+.formula {
+  font-family: var(--mono); font-size: 1.05rem; text-align: center; padding: 18px;
+  background: var(--panel-strong); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  margin: 16px 0; color: var(--teal);
+}
+
+.page-footer { color: var(--text-faint); font-size: .82rem; padding: 24px 4px 0; border-top: 1px solid var(--border); margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<div class="mobile-bar">
+  <a class="brand" href="#" style="padding:0">
+    <span class="dot" style="width:22px;height:22px"></span>
+    <span>eval-metrics</span>
+  </a>
+  <button class="icon-btn" id="menuBtn" aria-label="Toggle navigation">☰</button>
+</div>
+
+<div class="scrim" id="scrim"></div>
+
+<aside class="sidebar" id="sidebar">
+  <a class="brand" href="learning-log.html" title="Back to mini-rag log">
+    <span class="dot"></span>
+    <div><span>mini-rag</span><small>Eval Metrics</small></div>
+  </a>
+  <a href="learning-log.html" class="back-link">← Mini-RAG log</a>
+
+  <div class="progress-track"><div class="progress-fill"></div></div>
+  <div class="progress-label">In progress</div>
+
+  <nav class="navlist" id="navlist">
+    <a href="#step1"><span class="n">01</span>Why measure at all</a>
+    <a href="#step2"><span class="n">02</span>The answer key</a>
+    <a href="#step3"><span class="n">03</span>Retrieval metrics</a>
+    <a href="#step4"><span class="n">04</span>Faithfulness</a>
+  </nav>
+
+  <div class="sidebar-footer">
+    Part 2 of the mini-rag log — evaluating what Step 1–12 built.
+  </div>
+</aside>
+
+<div class="main">
+  <span class="eyebrow">● RAG evaluation metrics</span>
+  <h1>Measuring your <span class="grad">RAG pipeline</span></h1>
+  <p class="lead">You built retrieval and generation. Now: how do you know if either one is actually good — beyond eyeballing whether a chunk "looks relevant"? This page covers the theory, the math, and the code to measure it properly.</p>
+
+  <div class="grid">
+    <div class="card stat"><div class="n">5</div><div class="l">Test questions</div></div>
+    <div class="card stat"><div class="n">2</div><div class="l">Metric families</div></div>
+    <div class="card stat"><div class="n">44</div><div class="l">Chunks to search</div></div>
+  </div>
+
+  <section class="step" id="step1">
+    <div class="step-head"><span class="pill teal">Concept</span></div>
+    <h2>Why "it looks right" isn't good enough</h2>
+
+    <p>Across the mini-rag log, every result was judged by reading the retrieved text and asking
+    "does this look relevant?" That works for a demo with 3 documents and a handful of questions.
+    It completely falls apart at real scale: 10,000 documents, hundreds of questions, and no time
+    to read every retrieved chunk by eye.</p>
+
+    <p><strong>Evaluation metrics replace "looks right" with a number you can compute
+    automatically</strong>, compare across different settings (chunk size, overlap, embedding
+    model, k value), and track over time as the system changes. Without metrics, you can't answer
+    basic engineering questions like:</p>
+
+    <ul>
+      <li>"Did increasing chunk overlap from 50 to 100 actually improve retrieval, or did it just
+      feel like it should?"</li>
+      <li>"Is <code>all-MiniLM-L6-v2</code> good enough, or would a bigger embedding model
+      meaningfully improve results?"</li>
+      <li>"Is the system hallucinating more often than I think it is?"</li>
+    </ul>
+
+    <p>RAG evaluation splits into <strong>two separate questions</strong>, measured separately,
+    because a system can fail at either one independently:</p>
+
+    <div class="table-wrap">
+      <table>
+        <tr><td><b>Retrieval quality</b></td><td>Did the system find the <em>right chunks</em> for the question, out of everything available?</td></tr>
+        <tr><td><b>Answer faithfulness</b></td><td>Does the <em>generated answer</em> actually match what the retrieved chunks said — or did the model drift, add things, or contradict them?</td></tr>
+      </table>
+    </div>
+
+    <div class="callout info">
+      <strong>Why this split matters:</strong>
+      <p>Retrieval can be perfect (the exact right chunk gets found every time) while generation
+      still hallucinates on top of it. Or retrieval can be poor (wrong chunks) while the model
+      still writes a fluent, confident-sounding answer — just an answer to the wrong context. A
+      single end-to-end "did it look right" judgment can't tell you which of the two is actually
+      broken. Measuring them separately tells you exactly where to fix something.</p>
+    </div>
+
+    <div class="status">Concept established — two metric families, measured independently</div>
+  </section>
+
+  <section class="step" id="step2">
+    <div class="step-head"><span class="pill teal">Setup</span></div>
+    <h2>The answer key — ground truth for evaluation</h2>
+
+    <p><strong>The core idea:</strong> to measure whether retrieval got the right answer, you first
+    need to already know what the right answer is, for a fixed set of test questions. This is
+    called <strong>ground truth</strong> — a human-verified answer key that the automated metric
+    checks the system's output against.</p>
+
+    <p>Without ground truth, there's nothing to compute a metric <em>against</em> — "did retrieval
+    do well" is meaningless unless you can say "compared to what."</p>
+
+    <p>Built from questions already tested across Steps 6–9 of the mini-rag log, where the correct
+    chunk was confirmed by actually reading its text:</p>
+
+    <div class="table-wrap">
+      <table>
+        <tr><th>#</th><th>Question</th><th>Correct chunk index</th><th>Source doc</th></tr>
+        <tr><td>1</td><td>"What is cosine similarity?"</td><td><b>6</b></td><td>embeddings.txt</td></tr>
+        <tr><td>2</td><td>"What is a context window?"</td><td><b>38</b></td><td>llm_basics.txt</td></tr>
+        <tr><td>3</td><td>"Why does RAG reduce hallucination?"</td><td><b>18</b></td><td>rag.txt</td></tr>
+        <tr><td>4</td><td>"What is RAG?"</td><td><b>18</b></td><td>rag.txt</td></tr>
+        <tr><td>5</td><td>"What is an LLM?"</td><td><b>29</b></td><td>llm_basics.txt</td></tr>
+      </table>
+    </div>
+
+    <p><strong>In code, this becomes a simple list of dictionaries</strong> — one entry per test
+    case, pairing a question with its known-correct chunk index:</p>
+
+    <pre><code>eval_set = [
+    {"question": "What is cosine similarity?", "correct_index": 6},
+    {"question": "What is a context window?", "correct_index": 38},
+    {"question": "Why does RAG reduce hallucination?", "correct_index": 18},
+    {"question": "What is RAG?", "correct_index": 18},
+    {"question": "What is an LLM?", "correct_index": 29},
+]</code></pre>
+
+    <p>A real production eval set would have dozens to hundreds of entries, often written by
+    domain experts who know the correct answer independently of the system being tested — the
+    person building the eval set shouldn't be biased by watching the system's own outputs first.
+    Five is enough to learn the mechanics.</p>
+
+    <div class="status">Answer key built — 5 questions, ground-truth chunk indices confirmed by prior manual reading</div>
+  </section>
+
+  <section class="step" id="step3">
+    <div class="step-head"><span class="pill amber">Retrieval metrics</span></div>
+    <h2>Measuring retrieval — Hit Rate and MRR</h2>
+
+    <p>Two of the most common, simplest retrieval metrics — both computable from nothing more than
+    "where did the correct chunk rank in the results?":</p>
+
+    <h3>Hit Rate @ k</h3>
+    <p>Out of all test questions, what fraction had the correct chunk <em>somewhere</em> in the
+    top <code>k</code> retrieved results? This is a yes/no per question, then averaged.</p>
+
+    <div class="formula">Hit Rate @ k = (number of questions where correct chunk is in top-k) / (total questions)</div>
+
+    <p>If <code>k=3</code> and the correct chunk appears anywhere among the 3 retrieved chunks
+    (rank 1, 2, or 3), that question counts as a "hit." This is deliberately lenient — it doesn't
+    care if the correct chunk was ranked first or third, only that it showed up at all within the
+    window actually handed to the model.</p>
+
+    <h3>Mean Reciprocal Rank (MRR)</h3>
+    <p>Hit Rate treats rank-1 and rank-3 the same as long as both are "in the top-k." MRR is
+    stricter — it rewards the correct chunk showing up <em>higher</em> in the ranking, not just
+    somewhere in the window.</p>
+
+    <div class="formula">Reciprocal Rank = 1 / (rank of the correct chunk)<br>MRR = average of Reciprocal Rank across all questions</div>
+
+    <p>If the correct chunk is ranked #1, reciprocal rank = 1/1 = <b>1.0</b> (perfect). If it's
+    ranked #2, reciprocal rank = 1/2 = <b>0.5</b>. If it's ranked #3, reciprocal rank = 1/3 ≈
+    <b>0.33</b>. If it's not found at all within the search window, reciprocal rank = <b>0</b>.
+    MRR is the average of these values across every test question.</p>
+
+    <div class="callout win">
+      <strong>Why both metrics, not just one:</strong>
+      <p>Hit Rate answers "does the system usually get the right chunk into the context window at
+      all?" — a coarse pass/fail signal. MRR answers "when it does, how confidently/highly does it
+      rank it?" — a finer signal that Hit Rate can't see, since Hit Rate treats rank 1 and rank k
+      identically. A system can have perfect Hit Rate but mediocre MRR if the correct chunk keeps
+      barely squeaking into the last k-slot instead of ranking first.</p>
+    </div>
+
+    <p><strong>In code</strong> — running the eval set through the existing
+    <code>retrieve_top_k</code> function, and computing both metrics from the results:</p>
+
+    <pre><code>def evaluate_retrieval(eval_set, model, chunks, chunk_embeddings, k=3):
+    hits = 0
+    reciprocal_ranks = []
+
+    for case in eval_set:
+        _, top_indices = retrieve_top_k(
+            model, case["question"], chunks, chunk_embeddings, k
+        )
+        top_indices = [int(i) for i in top_indices]  # tensor -> plain ints
+
+        if case["correct_index"] in top_indices:
+            hits += 1
+            rank = top_indices.index(case["correct_index"]) + 1  # 1-based rank
+            reciprocal_ranks.append(1 / rank)
+        else:
+            reciprocal_ranks.append(0)
+
+    hit_rate = hits / len(eval_set)
+    mrr = sum(reciprocal_ranks) / len(reciprocal_ranks)
+    return hit_rate, mrr</code></pre>
+
+    <p>This reuses <code>retrieve_top_k</code> exactly as already written in
+    <code>mini_rag.py</code> — evaluation doesn't need new retrieval logic, only a loop that checks
+    the output against the answer key and tallies the results.</p>
+
+    <div class="status pending">Waiting for this to be run against the actual eval set</div>
+  </section>
+
+  <section class="step" id="step4">
+    <div class="step-head"><span class="pill violet">Generation metrics</span></div>
+    <h2>Measuring faithfulness — did the answer stick to the context?</h2>
+
+    <p><strong>The problem retrieval metrics can't catch:</strong> even with perfect retrieval
+    (correct chunk ranked #1 every time), Claude's final written answer could still drift —
+    adding a detail that isn't in the context, or subtly contradicting it. Hit Rate and MRR only
+    measure the search step; they say nothing about what the model did with the results.</p>
+
+    <p><strong>Faithfulness</strong> (also called groundedness) asks: is every claim in the
+    generated answer actually supported by the retrieved context? This is harder to measure than
+    retrieval metrics, because it's a judgment about meaning, not just "did index X appear in a
+    list."</p>
+
+    <h3>The practical approach: LLM-as-judge</h3>
+    <p>Rather than hand-writing rules to detect unsupported claims, a common and effective
+    technique is to ask <em>another</em> LLM call to do the judging — give it the context, the
+    generated answer, and ask a strict yes/no/score question about whether the answer stays
+    within the context.</p>
+
+    <pre><code>def evaluate_faithfulness(client, context, answer):
+    judge_prompt = f"""Context:
+{context}
+
+Answer to check:
+{answer}
+
+Does the answer ONLY use information present in the context above,
+with no added claims, facts, or details not found in the context?
+Reply with exactly one word: FAITHFUL or UNFAITHFUL."""
+
+    response = client.messages.create(
+        model=MODEL_NAME,
+        max_tokens=10,
+        messages=[{"role": "user", "content": judge_prompt}]
+    )
+    return response.content[0].text.strip()</code></pre>
+
+    <p>This is the same <code>client.messages.create(...)</code> pattern already used for
+    generation in Step 7/11 — the only difference is the prompt's job: instead of answering a
+    question from context, it's grading whether a <em>different</em> answer respects that context.</p>
+
+    <div class="callout info">
+      <strong>Why this works reasonably well:</strong>
+      <p>Judging "does this text logically follow from this other text" is a language-understanding
+      task, which is exactly what LLMs are good at — much harder to hand-code with rules
+      (keyword matching, regex) than to just ask a capable model directly. It isn't perfect (the
+      judge itself can be wrong), but it scales to hundreds of answers without a human reading
+      every one, which manual review can't do.</p>
+    </div>
+
+    <h3>What "unfaithful" actually looks like</h3>
+    <p>Concretely, an unfaithful answer might: state a fact the context never mentioned (even if
+    true in general), draw a conclusion the context doesn't support, or contradict something the
+    context explicitly says. Faithfulness is not the same as <em>correctness</em> — an answer can
+    be faithful to the context and still wrong, if the context itself was wrong or insufficient.
+    Faithfulness only checks "did the model stay within its sources," not "are the sources right."</p>
+
+    <div class="status pending">Waiting for this to be run against generated answers from Steps 7/11</div>
+  </section>
+
+  <div class="page-footer">
+    Part 2 of the mini-rag log. Theory and code are logged as built — results get filled in as each metric actually runs.
+  </div>
+</div>
+
+<script>
+  const links = Array.from(document.querySelectorAll('.navlist a'));
+  const sections = links.map(a => document.querySelector(a.getAttribute('href')));
+  function onScroll() {
+    let activeIdx = 0;
+    const scrollPos = window.scrollY + 120;
+    sections.forEach((sec, i) => { if (sec && sec.offsetTop <= scrollPos) activeIdx = i; });
+    links.forEach((a, i) => a.classList.toggle('active', i === activeIdx));
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  const sidebar = document.getElementById('sidebar');
+  const menuBtn = document.getElementById('menuBtn');
+  const scrim = document.getElementById('scrim');
+  function closeDrawer() { sidebar.classList.remove('open'); scrim.classList.remove('show'); }
+  function toggleDrawer() {
+    const isOpen = sidebar.classList.toggle('open');
+    scrim.classList.toggle('show', isOpen);
+  }
+  menuBtn.addEventListener('click', toggleDrawer);
+  scrim.addEventListener('click', closeDrawer);
+  links.forEach(a => a.addEventListener('click', (e) => {
+    const target = document.querySelector(a.getAttribute('href'));
+    if (target && sidebar.classList.contains('open')) {
+      e.preventDefault();
+      closeDrawer();
+      setTimeout(() => target.scrollIntoView({ behavior: 'smooth', block: 'start' }), 260);
+    }
+  }));
+</script>
+
+</body>
+</html>
