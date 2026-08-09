@@ -420,7 +420,69 @@ td b { color: var(--teal); font-weight: 650; }
     <code>mini_rag.py</code> — evaluation doesn't need new retrieval logic, only a loop that checks
     the output against the answer key and tallies the results.</p>
 
-    <div class="status pending">Waiting for this to be run against the actual eval set</div>
+    <h3>Line by line, what's actually happening</h3>
+
+    <p><code>hits = 0</code> and <code>reciprocal_ranks = []</code> — two running totals built up
+    across every test question. <code>hits</code> counts "how many questions did we get right at
+    all"; <code>reciprocal_ranks</code> stores one number per question for the finer-grained MRR
+    metric.</p>
+
+    <p><code>for case in eval_set:</code> — loop over each of the 5 test dictionaries one at a
+    time. <code>case</code> is one dictionary like
+    <code>{"question": "...", "correct_index": 6}</code>.</p>
+
+    <p>The retrieval call — <code>case["question"]</code> pulls the question string out of the
+    dictionary; the <code>_,</code> on the left throws away the similarity scores, since only
+    which chunks came back matters here.</p>
+
+    <p><code>top_indices = [int(i) for i in top_indices]</code> — <code>top_indices</code> comes
+    back as PyTorch tensor objects (the <code>tensor(18)</code> seen in earlier steps' output), not
+    plain Python integers. This line converts each one to a normal <code>int</code> so it can be
+    compared and searched with plain Python (<code>in</code>, <code>.index()</code>) — tensors
+    don't support those operations directly.</p>
+
+    <p><code>if case["correct_index"] in top_indices:</code> — the actual check: is the
+    known-correct chunk index anywhere in the top-k list that came back? This is the Hit Rate
+    check for this one question.</p>
+
+    <p><code>rank = top_indices.index(case["correct_index"]) + 1</code> —
+    <code>.index(...)</code> finds the <em>position</em> of the correct index inside the list (0,
+    1, or 2 for k=3); <code>+1</code> converts that to a 1-based rank (1st, 2nd, 3rd place) since
+    "rank 0" reads oddly to a human.</p>
+
+    <p><code>reciprocal_ranks.append(1 / rank)</code> — the MRR math from the formula above: 1st
+    place → 1/1 = 1.0, 2nd place → 1/2 = 0.5, 3rd place → 1/3 ≈ 0.33.
+    <code>else: reciprocal_ranks.append(0)</code> — if the correct chunk wasn't found at all in the
+    top-k, that question contributes a 0 (the worst possible score for that question).</p>
+
+    <p><code>hit_rate = hits / len(eval_set)</code> — fraction of all 5 questions that were hits.
+    <code>mrr = sum(reciprocal_ranks) / len(reciprocal_ranks)</code> — the average of all 5
+    reciprocal-rank scores.</p>
+
+    <p><strong>Real run, against the actual eval set:</strong></p>
+
+    <pre><code>Hit Rate @ 3: 1.00
+MRR: 1.0000</code></pre>
+
+    <div class="callout win">
+      <strong>What this actually means:</strong>
+      <p>a perfect score on both metrics — every one of the 5 test questions correctly retrieved
+      its known chunk, <em>and</em> every one ranked it #1 (that's what MRR = 1.0 specifically
+      means — reciprocal rank of 1/1 for every question, not just "found somewhere in the top 3").
+      Hit Rate alone couldn't distinguish "found at rank 1" from "found at rank 3" — MRR confirms
+      it wasn't just barely squeaking into the window.</p>
+    </div>
+
+    <div class="callout info">
+      <strong>Worth being honest about — is 5 questions enough to trust this?</strong>
+      <p>No, not on its own. A perfect score on 5 hand-picked questions (chosen from questions that
+      were already confirmed working in earlier steps) mostly proves the metric code itself is
+      correct, not that retrieval is flawless in general. A real eval set needs dozens to hundreds
+      of questions, including harder or more ambiguous ones the system hasn't already been tuned
+      against, before a perfect score would mean much.</p>
+    </div>
+
+    <div class="status">Hit Rate @ 3 = 1.00, MRR = 1.0000 — verified against the real pipeline, not simulated</div>
   </section>
 
   <section class="step" id="step4">
