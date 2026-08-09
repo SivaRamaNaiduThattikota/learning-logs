@@ -391,6 +391,11 @@ td b { color: var(--teal); font-weight: 650; }
   <h1>Mini-RAG <span class="grad">Learning Log</span></h1>
   <p class="lead">A step-by-step backup of the RAG project you're building by hand — concepts, code, real output, and the debugging detours along the way.</p>
 
+  <div class="callout win" style="margin:22px 0 30px;">
+    <strong>You built an entire RAG pipeline from scratch</strong>
+    <p>chunking, local embeddings, cosine similarity, cross-document retrieval, top-k ranking, and grounded generation with Claude.</p>
+  </div>
+
   <div class="grid">
     <div class="card stat"><div class="n">12</div><div class="l">Steps done</div></div>
     <div class="card stat"><div class="n">44</div><div class="l">Chunks searched</div></div>
@@ -621,52 +626,6 @@ print("first 5 numbers:", embedding[:5])</code></pre>
     </div>
 
     <pre><code>cd "Gen AI Projects\mini-rag"
-python mini_rag.py</code></pre>
-
-    <p><strong>Bigger detour: corporate network blocked the model download.</strong>
-    Running from the correct folder surfaced a new error —
-    <code>SSLCertVerificationError: self-signed certificate in certificate chain</code> when trying
-    to reach huggingface.co. This is a work laptop (AbbVie), and this is the classic sign of a
-    corporate network that inspects HTTPS traffic through a proxy (this one turned out to be
-    <strong>Zscaler</strong>) — it re-signs traffic with its own certificate, which Python doesn't
-    trust by default even though your browser does (the browser gets the corporate cert from
-    Windows' trust store automatically; Python uses its own separate bundle via the
-    <code>certifi</code> package).</p>
-
-    <p><strong>Fix, step by step:</strong></p>
-    <div class="table-wrap">
-      <table>
-        <tr><td>1. Found corporate root cert</td><td><b>Windows Cert store → AbbVie Global Root CA + Sub CA03</b></td></tr>
-        <tr><td>2. Exported both</td><td><b>PowerShell → .cer files</b></td></tr>
-        <tr><td>3. Converted to PEM</td><td><b>openssl x509 -inform DER</b></td></tr>
-        <tr><td>4. Appended to certifi's bundle</td><td><b>site-packages\certifi\cacert.pem (backup kept)</b></td></tr>
-      </table>
-    </div>
-
-    <p>This is a standing fix, not a one-time thing — every future HTTPS call from Python on this
-    machine (pip installs, API calls, model downloads) goes through the same inspecting proxy, so
-    the appended certs stay in place permanently. They're just public root/intermediate CA
-    certificates (not secrets), and this is normal, expected configuration for a corporate machine.</p>
-
-    <p><strong>Second layer, after the SSL fix:</strong> a new error appeared —
-    <code>RemoteProtocolError: illegal status line</code>, with an HTML page instead of real
-    data. Testing directly showed <strong>Zscaler returning an HTTP 403 block page</strong>, but
-    only for the script-style request — the exact same URL loaded fine in a normal browser.
-    The difference: Python's default requests don't send a browser-like
-    <code>User-Agent</code> header, and Zscaler's policy here appears to treat headerless/script
-    traffic differently from normal browsing, even for identical, public, harmless content.</p>
-
-    <div class="callout info">
-      <strong>Decision point:</strong>
-      <p>spoofing a browser User-Agent gets past this, but it's a
-      standing identity-spoofing change if set permanently — on a company-managed device, that's a
-      call for the user to make, not something to quietly configure system-wide. Chose:
-      <strong>session-only override</strong>, used once to complete this one download. Once the
-      model is cached locally, no further network access is needed for it — so there's no ongoing
-      need for the override.</p>
-    </div>
-
-    <pre><code>export HF_HUB_USER_AGENT_ORIGIN="Mozilla/5.0 (Windows NT 10.0; Win64; x64) ..."
 python mini_rag.py</code></pre>
 
     <p><strong>Result:</strong></p>
